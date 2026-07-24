@@ -275,23 +275,24 @@
 
   <div class="card">
     <p class="form-title">参加登録</p>
-    <p class="form-sub">灯火を囲む時間に、あなたも。</p>
+    <p class="form-sub">Unityイベント参加入力フォーム</p>
 
-    <form id="form">
+    <form id="form" action="https://docs.google.com/forms/d/e/1FAIpQLSfggxKoOIECTTx8yfwktoxrOT0rRKhWyLryHYYugUmhlR2XaA/formResponse" method="POST" target="hidden_iframe">
       <div class="field">
         <label for="eventName">イベント名</label>
-        <input type="text" id="eventName" placeholder="例）Unity 交流会 vol.3" required>
+        <input type="text" id="eventName" name="entry.1834327533" placeholder="例）Unity 交流会 vol.3" required>
       </div>
       <div class="field">
         <label for="date">参加日</label>
-        <input type="date" id="date" required>
+        <input type="date" id="date" name="entry.2119680669" required>
       </div>
       <div class="field">
         <label for="name">お名前</label>
-        <input type="text" id="name" placeholder="山田 太郎" required>
+        <input type="text" id="name" name="entry.1786168698" placeholder="山田 太郎" required>
       </div>
       <button type="submit" id="submitBtn">参加する</button>
     </form>
+    <iframe name="hidden_iframe" style="display:none;"></iframe>
     <div class="msg" id="msg"></div>
 
     <div class="divider-row">
@@ -310,10 +311,8 @@
     </div>
 
     <div id="adminPanel" style="display:none;">
-      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
-        <span class="count-tag" id="count"></span>
-      </div>
-      <div id="list"></div>
+      <p class="empty" style="margin-bottom:14px;">参加者一覧はGoogleスプレッドシートで確認できます</p>
+      <a href="YOUR_SPREADSHEET_URL_HERE" target="_blank" rel="noopener" style="display:block; text-align:center; padding:12px; border:1px solid var(--gold-500); color:var(--gold-300); text-decoration:none; font-family:'Cinzel', serif; font-size:12px; letter-spacing:0.12em;">スプレッドシートを開く</a>
     </div>
   </div>
 
@@ -321,29 +320,57 @@
 </div>
 
 <script>
+// ▼▼▼ ここにApps ScriptでデプロイしたウェブアプリのURLを貼り付けてください ▼▼▼
+const SCRIPT_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+// ▲▲▲ ここまで ▲▲▲
+
+function jsonp(url, params) {
+  return new Promise((resolve, reject) => {
+    const callbackName = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+    const script = document.createElement('script');
+
+    window[callbackName] = (data) => {
+      resolve(data);
+      cleanup();
+    };
+
+    function cleanup() {
+      delete window[callbackName];
+      script.remove();
+      clearTimeout(timer);
+    }
+
+    const query = new URLSearchParams({ ...params, callback: callbackName }).toString();
+    script.src = url + '?' + query;
+    script.onerror = () => { reject(new Error('network error')); cleanup(); };
+    document.body.appendChild(script);
+
+    const timer = setTimeout(() => {
+      reject(new Error('timeout'));
+      cleanup();
+    }, 10000);
+  });
+}
+
 function escapeHtml(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
 }
 
-async function loadEntries() {
+async function loadEntries(pin) {
   const listEl = document.getElementById('list');
   const countEl = document.getElementById('count');
   try {
-    const res = await window.storage.list('entry:', true);
-    const keys = (res && res.keys) ? res.keys : [];
-    if (keys.length === 0) {
+    const result = await jsonp(SCRIPT_URL, { action: 'list', pin });
+    if (result.status !== 'ok') {
+      throw new Error(result.message || 'error');
+    }
+    const entries = result.entries || [];
+    if (entries.length === 0) {
       listEl.innerHTML = '<div class="empty">まだ参加登録がありません</div>';
       countEl.textContent = '';
       return;
-    }
-    const entries = [];
-    for (const k of keys) {
-      try {
-        const r = await window.storage.get(k, true);
-        if (r && r.value) entries.push(JSON.parse(r.value));
-      } catch (e) {}
     }
     entries.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     countEl.textContent = entries.length + ' 名';
@@ -376,16 +403,18 @@ document.getElementById('form').addEventListener('submit', async (ev) => {
   msg.className = 'msg';
 
   try {
-    const id = 'entry:' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-    const result = await window.storage.set(id, JSON.stringify({ eventName, date, name }), true);
-    if (!result) throw new Error('failed');
+    const result = await jsonp(SCRIPT_URL, { action: 'submit', eventName, date, name });
+    if (result.status !== 'ok') {
+      throw new Error(result.message || 'error');
+    }
     msg.textContent = 'ご登録ありがとうございます。当日お待ちしております。';
     msg.className = 'msg ok';
     eventNameInput.value = '';
     dateInput.value = '';
     nameInput.value = '';
     if (document.getElementById('adminPanel').style.display !== 'none') {
-      loadEntries();
+      const pin = document.getElementById('adminPin').value;
+      loadEntries(pin);
     }
   } catch (e) {
     msg.textContent = '送信に失敗しました。もう一度お試しください。';
@@ -395,18 +424,30 @@ document.getElementById('form').addEventListener('submit', async (ev) => {
   }
 });
 
-const ADMIN_PIN = 'unity2026';
-
-document.getElementById('adminBtn').addEventListener('click', () => {
+document.getElementById('adminBtn').addEventListener('click', async () => {
   const input = document.getElementById('adminPin');
   const adminMsg = document.getElementById('adminMsg');
-  if (input.value === ADMIN_PIN) {
+  const btn = document.getElementById('adminBtn');
+
+  btn.disabled = true;
+  adminMsg.textContent = '';
+  adminMsg.className = 'msg';
+
+  try {
+    const result = await jsonp(SCRIPT_URL, { action: 'list', pin: input.value });
+    if (result.status !== 'ok') {
+      adminMsg.textContent = 'パスコードが違います';
+      adminMsg.className = 'msg err';
+      return;
+    }
     document.getElementById('adminGate').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'block';
-    loadEntries();
-  } else {
-    adminMsg.textContent = 'パスコードが違います';
+    loadEntries(input.value);
+  } catch (e) {
+    adminMsg.textContent = '通信に失敗しました';
     adminMsg.className = 'msg err';
+  } finally {
+    btn.disabled = false;
   }
 });
 
