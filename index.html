@@ -376,7 +376,7 @@
     <p class="form-title">参加登録</p>
     <p class="form-sub">Unityイベント参加フォーム</p>
 
-    <form id="form" action="https://docs.google.com/forms/d/e/1FAIpQLSfggxKoOIECTTx8yfwktoxrOT0rRKhWyLryHYYugUmhlR2XaA/formResponse" method="POST" target="hidden_iframe">
+    <form id="form" action="https://docs.google.com/forms/d/e/1FAIpQLSfggxKoOIECTTx8yfwktoxrOT0rRKhWyLryHYYugUmhlR2XaA/formResponse" method="POST" target="hidden_iframe" onsubmit="unityShowLineModal();">
       <div class="field">
         <label for="eventName">イベント名</label>
         <input type="text" id="eventName" name="entry.1834327533" placeholder="例）Unity 交流会 vol.3" required>
@@ -418,74 +418,6 @@
   <p class="footer-note">UNITY TOKYO &nbsp;·&nbsp; COMMUNITY GATHERING</p>
 </div>
 
-<script>
-document.getElementById('form').addEventListener('submit', function () {
-  const btn = document.getElementById('submitBtn');
-  const msg = document.getElementById('msg');
-  const eventNameInput = document.getElementById('eventName');
-  const dateInput = document.getElementById('date');
-  const nameInput = document.getElementById('name');
-  const lineModal = document.getElementById('lineModal');
-
-  btn.disabled = true;
-  msg.textContent = '';
-  msg.className = 'msg';
-
-  // フォームはそのままhidden_iframeへPOSTしつつ、申込直後に案内を表示
-  lineModal.classList.add('is-open');
-
-  setTimeout(() => {
-    msg.textContent = 'ご登録ありがとうございます。';
-    msg.className = 'msg ok';
-    eventNameInput.value = '';
-    dateInput.value = '';
-    nameInput.value = '';
-    btn.disabled = false;
-  }, 900);
-  // preventDefaultは使用しない → Googleフォームへの送信を維持
-});
-
-// ポップアップを閉じる
-document.getElementById('lineModalClose').addEventListener('click', () => {
-  document.getElementById('lineModal').classList.remove('is-open');
-});
-
-// 背景部分をタップしても閉じる
-document.getElementById('lineModal').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) {
-    e.currentTarget.classList.remove('is-open');
-  }
-});
-
-// ESCキーでも閉じる
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    document.getElementById('lineModal').classList.remove('is-open');
-  }
-});
-
-const ADMIN_PIN = 'unity2026'; // 好きなパスコードに変更してください
-
-document.getElementById('adminBtn').addEventListener('click', () => {
-  const input = document.getElementById('adminPin');
-  const adminMsg = document.getElementById('adminMsg');
-  if (input.value === ADMIN_PIN) {
-    document.getElementById('adminGate').style.display = 'none';
-    document.getElementById('adminPanel').style.display = 'block';
-  } else {
-    adminMsg.textContent = 'パスコードが違います';
-    adminMsg.className = 'msg err';
-  }
-});
-
-document.getElementById('adminPin').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    document.getElementById('adminBtn').click();
-  }
-});
-</script>
-
 <!-- 参加申込後の公式LINE案内 -->
 <div class="line-modal-overlay" id="lineModal" role="dialog" aria-modal="true" aria-labelledby="lineModalTitle">
   <div class="line-modal" role="document">
@@ -500,9 +432,130 @@ document.getElementById('adminPin').addEventListener('keydown', (e) => {
       公式LINEでのメッセージ送信をもって<br>
       参加受付完了となります。
     </p>
-    <button type="button" class="line-modal-close" id="lineModalClose">確認しました</button>
+    <form method="get" action="" style="margin:0; padding:0;">
+      <button type="submit" class="line-modal-close" id="lineModalClose">確認しました</button>
+    </form>
   </div>
 </div>
+
+
+<script>
+/* =========================================================
+   UNITY 参加申込ポップアップ — FAIL-SAFE版
+   この機能は他のJSイベントリスナーに依存しません。
+   ========================================================= */
+(function () {
+  function getModal() {
+    return document.getElementById('lineModal');
+  }
+
+  window.unityShowLineModal = function () {
+    var modal = getModal();
+    if (!modal) return true;
+
+    // CSSクラスに加えてdisplayも直接指定。どちらかが効かなくても表示。
+    modal.classList.add('is-open');
+    modal.style.display = 'flex';
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
+    modal.style.pointerEvents = 'auto';
+    modal.setAttribute('aria-hidden', 'false');
+
+    // 背景スクロールを止める
+    document.body.style.overflow = 'hidden';
+
+    return true; // GoogleフォームへのPOSTを絶対に止めない
+  };
+
+  window.unityCloseLineModal = function () {
+    var modal = getModal();
+    if (!modal) return;
+
+    modal.classList.remove('is-open');
+    modal.style.display = 'none';
+    modal.style.visibility = 'hidden';
+    modal.style.opacity = '0';
+    modal.style.pointerEvents = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  };
+
+  // 背景タップ / ESCも独立して対応。ただし失敗しても本体機能には影響なし。
+  document.addEventListener('click', function (e) {
+    var modal = getModal();
+    if (modal && e.target === modal) {
+      window.unityCloseLineModal();
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      window.unityCloseLineModal();
+    }
+  });
+
+  // 既存の「登録ありがとうございます」表示などは独立して実行。
+  // ここでエラーが起きてもポップアップ機能には影響しないようtry/catch。
+  try {
+    var form = document.getElementById('form');
+    if (form) {
+      form.addEventListener('submit', function () {
+        try {
+          var btn = document.getElementById('submitBtn');
+          var msg = document.getElementById('msg');
+          var eventNameInput = document.getElementById('eventName');
+          var dateInput = document.getElementById('date');
+          var nameInput = document.getElementById('name');
+
+          if (btn) btn.disabled = true;
+          if (msg) { msg.textContent = ''; msg.className = 'msg'; }
+
+          setTimeout(function () {
+            if (msg) { msg.textContent = 'ご登録ありがとうございます。'; msg.className = 'msg ok'; }
+            if (eventNameInput) eventNameInput.value = '';
+            if (dateInput) dateInput.value = '';
+            if (nameInput) nameInput.value = '';
+            if (btn) btn.disabled = false;
+          }, 900);
+        } catch (e) {}
+      });
+    }
+  } catch (e) {}
+
+  // 管理者機能も独立してtry/catch。
+  try {
+    var ADMIN_PIN = 'unity2026';
+    var adminBtn = document.getElementById('adminBtn');
+    var adminPin = document.getElementById('adminPin');
+
+    if (adminBtn) {
+      adminBtn.addEventListener('click', function () {
+        var input = document.getElementById('adminPin');
+        var adminMsg = document.getElementById('adminMsg');
+        if (input && input.value === ADMIN_PIN) {
+          document.getElementById('adminGate').style.display = 'none';
+          document.getElementById('adminPanel').style.display = 'block';
+        } else if (adminMsg) {
+          adminMsg.textContent = 'パスコードが違います';
+          adminMsg.className = 'msg err';
+        }
+      });
+    }
+
+    if (adminPin) {
+      adminPin.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (adminBtn) adminBtn.click();
+        }
+      });
+    }
+  } catch (e) {}
+})();
+</script>
+
+
+
 
 </body>
 </html>
