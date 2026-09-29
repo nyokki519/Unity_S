@@ -277,6 +277,17 @@
   @media (prefers-reduced-motion: reduce){
     .ray{ animation:none; }
   }
+
+  /* 参加申込後ポップアップ */
+  .modal-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,10,6,.72);backdrop-filter:blur(5px);align-items:center;justify-content:center;padding:24px;}
+  .modal-overlay.show{display:flex;}
+  .modal{width:min(90%,420px);background:#f4ecdd;color:#2a1c14;padding:32px 26px 26px;text-align:center;border:1px solid #c9a15c;box-shadow:0 20px 60px rgba(0,0,0,.35);}
+  .modal-title{font-family:'Cinzel',serif;font-size:14px;letter-spacing:.14em;margin-bottom:22px;}
+  .modal-text{font-family:'Noto Sans JP',sans-serif;font-size:14px;line-height:2;margin:0 0 22px;}
+  .modal-text strong{display:inline-block;font-size:17px;letter-spacing:.08em;margin:4px 0;}
+  .modal-note{font-family:'Noto Sans JP',sans-serif;font-size:11px;color:#6f5a48;line-height:1.8;margin-bottom:22px;}
+  .modal-close{width:100%;padding:12px;border:1px solid #a9803f;background:#2a1c14;color:#f4ecdd;font-family:'Noto Sans JP',sans-serif;font-size:13px;cursor:pointer;}
+
 </style>
 </head>
 <body>
@@ -357,14 +368,28 @@ document.getElementById('form').addEventListener('submit', function () {
 
   // iframeへの送信は結果を読み取れないため、少し待ってから成功表示にします
   setTimeout(() => {
-    msg.textContent = 'ご登録ありがとうございます。当日お待ちしております。';
+    msg.textContent = 'ご登録ありがとうございます。';
     msg.className = 'msg ok';
     eventNameInput.value = '';
     dateInput.value = '';
     nameInput.value = '';
     btn.disabled = false;
+
+    // 参加申込後に公式LINE案内を表示
+    document.getElementById('lineModal').classList.add('show');
   }, 900);
   // ここでは preventDefault しない → 通常どおりフォームがhidden_iframeへPOSTされます
+});
+
+document.getElementById('modalClose').addEventListener('click', () => {
+  document.getElementById('lineModal').classList.remove('show');
+});
+
+// ポップアップ外側をタップして閉じる
+document.getElementById('lineModal').addEventListener('click', (e) => {
+  if (e.target.id === 'lineModal') {
+    e.currentTarget.classList.remove('show');
+  }
 });
 
 const ADMIN_PIN = 'unity2026'; // 好きなパスコードに変更してください
@@ -388,5 +413,22 @@ document.getElementById('adminPin').addEventListener('keydown', (e) => {
   }
 });
 </script>
+
+<div class="modal-overlay" id="lineModal" role="dialog" aria-modal="true" aria-labelledby="lineModalTitle">
+  <div class="modal">
+    <div class="modal-title" id="lineModalTitle">THANK YOU</div>
+    <p class="modal-text">
+      参加申請ありがとうございます。<br><br>
+      参加申請後は公式LINEにて<br>
+      <strong>「参加希望」</strong><br>
+      とメッセージ送信をお願いします。
+    </p>
+    <p class="modal-note">
+      公式LINEでのメッセージ送信をもって<br>
+      参加受付完了となります。
+    </p>
+    <button type="button" class="modal-close" id="modalClose">確認しました</button>
+  </div>
+</div>
+
 </body>
-</html>
