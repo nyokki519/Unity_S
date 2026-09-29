@@ -344,6 +344,14 @@
   font-weight: 700;
   cursor: pointer;
 }
+.line-modal-close,
+.line-modal-close:hover:not(:disabled),
+.line-modal-close:focus {
+  margin-top: 0;
+  background: #d4af6a;   /* ページ共通の button:hover で暗くならないよう固定 */
+  color: #191512;
+  box-shadow: none;
+}
 .line-modal-close:active {
   transform: scale(.98);
 }
@@ -376,7 +384,7 @@
     <p class="form-title">参加登録</p>
     <p class="form-sub">Unityイベント参加フォーム</p>
 
-    <form id="form" action="https://docs.google.com/forms/d/e/1FAIpQLSfggxKoOIECTTx8yfwktoxrOT0rRKhWyLryHYYugUmhlR2XaA/formResponse" method="POST" target="hidden_iframe" onsubmit="unityShowLineModal();">
+    <form id="form" action="https://docs.google.com/forms/d/e/1FAIpQLSfggxKoOIECTTx8yfwktoxrOT0rRKhWyLryHYYugUmhlR2XaA/formResponse" method="POST" target="hidden_iframe">
       <div class="field">
         <label for="eventName">イベント名</label>
         <input type="text" id="eventName" name="entry.1834327533" placeholder="例）Unity 交流会 vol.3" required>
@@ -419,7 +427,7 @@
 </div>
 
 <!-- 参加申込後の公式LINE案内 -->
-<div class="line-modal-overlay" id="lineModal" role="dialog" aria-modal="true" aria-labelledby="lineModalTitle">
+<div class="line-modal-overlay" id="lineModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="lineModalTitle">
   <div class="line-modal" role="document">
     <div class="line-modal-title" id="lineModalTitle">THANK YOU</div>
     <p class="line-modal-message">
@@ -432,126 +440,135 @@
       公式LINEでのメッセージ送信をもって<br>
       参加受付完了となります。
     </p>
-    <form method="get" action="" style="margin:0; padding:0;">
-      <button type="submit" class="line-modal-close" id="lineModalClose">確認しました</button>
-    </form>
+    <button type="button" class="line-modal-close" id="lineModalClose">確認しました</button>
   </div>
 </div>
 
 
 <script>
-/* =========================================================
-   UNITY 参加申込ポップアップ — FAIL-SAFE版
-   この機能は他のJSイベントリスナーに依存しません。
-   ========================================================= */
 (function () {
-  function getModal() {
-    return document.getElementById('lineModal');
+  const form = document.getElementById('form');
+  const btn = document.getElementById('submitBtn');
+  const msg = document.getElementById('msg');
+  const modal = document.getElementById('lineModal');
+  const closeBtn = document.getElementById('lineModalClose');
+  const fields = ['eventName', 'date', 'name'].map(id => document.getElementById(id));
+  const BTN_LABEL = btn.textContent;
+
+  let submitting = false;      // 二重送信防止
+  let savedScrollY = 0;        // ポップアップを開く直前のスクロール位置
+
+  function setMsg(text, cls) {
+    msg.textContent = text;
+    msg.className = cls ? 'msg ' + cls : 'msg';
   }
 
-  window.unityShowLineModal = function () {
-    var modal = getModal();
-    if (!modal) return true;
+  function resetButton() {
+    submitting = false;
+    btn.disabled = false;
+    btn.textContent = BTN_LABEL;
+  }
 
-    // CSSクラスに加えてdisplayも直接指定。どちらかが効かなくても表示。
+  function openModal() {
+    savedScrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
     modal.classList.add('is-open');
-    modal.style.display = 'flex';
-    modal.style.visibility = 'visible';
-    modal.style.opacity = '1';
-    modal.style.pointerEvents = 'auto';
     modal.setAttribute('aria-hidden', 'false');
+  }
 
-    // 背景スクロールを止める
-    document.body.style.overflow = 'hidden';
-
-    return true; // GoogleフォームへのPOSTを絶対に止めない
-  };
-
-  window.unityCloseLineModal = function () {
-    var modal = getModal();
-    if (!modal) return;
-
+  // ポップアップを閉じて、必ず元の申込画面（フォーム）の状態に戻す
+  function closeModal() {
     modal.classList.remove('is-open');
-    modal.style.display = 'none';
-    modal.style.visibility = 'hidden';
-    modal.style.opacity = '0';
-    modal.style.pointerEvents = 'none';
     modal.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-  };
+    resetButton();
+    window.scrollTo(0, savedScrollY);
+  }
 
-  // 背景タップ / ESCも独立して対応。ただし失敗しても本体機能には影響なし。
-  document.addEventListener('click', function (e) {
-    var modal = getModal();
-    if (modal && e.target === modal) {
-      window.unityCloseLineModal();
+  // 申込内容をGoogleフォームへ送信（ページ遷移させない）
+  function sendToGoogle() {
+    const body = new URLSearchParams(new FormData(form));
+    if (window.fetch) {
+      // no-cors: レスポンスは読めないが、ネットワーク到達に成功すれば resolve される
+      // 通信が固まって「送信中…」のまま戻れなくならないよう、15秒でタイムアウト
+      const ctrl = window.AbortController ? new AbortController() : null;
+      const timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 15000);
+      return fetch(form.action, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: body,
+        signal: ctrl ? ctrl.signal : undefined
+      }).then(function (res) { clearTimeout(timer); return res; },
+              function (err) { clearTimeout(timer); throw err; });
     }
+    // fetch非対応の古い環境のみ、非表示iframeへ送信
+    return new Promise(resolve => {
+      form.submit();
+      setTimeout(resolve, 800);
+    });
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();               // ブラウザ標準のページ遷移を止める
+    if (submitting) return;
+    submitting = true;
+    btn.disabled = true;
+    btn.textContent = '送信中…';
+    setMsg('');
+
+    sendToGoogle().then(function () {
+      fields.forEach(f => { f.value = ''; });
+      resetButton();
+      setMsg('ご登録ありがとうございます。', 'ok');
+      openModal();
+    }).catch(function () {
+      // 送信できなかった場合は入力内容を残し、ポップアップも出さない
+      resetButton();
+      setMsg('送信できませんでした。通信環境をご確認のうえ、もう一度お試しください。', 'err');
+    });
   });
 
+  // 「確認しました」で閉じる
+  closeBtn.addEventListener('click', closeModal);
+
+  // 背景部分をタップしても閉じる
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) closeModal();
+  });
+
+  // ESCキーでも閉じる
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      window.unityCloseLineModal();
-    }
+    if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
   });
 
-  // 既存の「登録ありがとうございます」表示などは独立して実行。
-  // ここでエラーが起きてもポップアップ機能には影響しないようtry/catch。
-  try {
-    var form = document.getElementById('form');
-    if (form) {
-      form.addEventListener('submit', function () {
-        try {
-          var btn = document.getElementById('submitBtn');
-          var msg = document.getElementById('msg');
-          var eventNameInput = document.getElementById('eventName');
-          var dateInput = document.getElementById('date');
-          var nameInput = document.getElementById('name');
-
-          if (btn) btn.disabled = true;
-          if (msg) { msg.textContent = ''; msg.className = 'msg'; }
-
-          setTimeout(function () {
-            if (msg) { msg.textContent = 'ご登録ありがとうございます。'; msg.className = 'msg ok'; }
-            if (eventNameInput) eventNameInput.value = '';
-            if (dateInput) dateInput.value = '';
-            if (nameInput) nameInput.value = '';
-            if (btn) btn.disabled = false;
-          }, 900);
-        } catch (e) {}
-      });
+  // ブラウザの「戻る」等で復元された場合も、ポップアップが残らないようにする
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+      resetButton();
     }
-  } catch (e) {}
-
-  // 管理者機能も独立してtry/catch。
-  try {
-    var ADMIN_PIN = 'unity2026';
-    var adminBtn = document.getElementById('adminBtn');
-    var adminPin = document.getElementById('adminPin');
-
-    if (adminBtn) {
-      adminBtn.addEventListener('click', function () {
-        var input = document.getElementById('adminPin');
-        var adminMsg = document.getElementById('adminMsg');
-        if (input && input.value === ADMIN_PIN) {
-          document.getElementById('adminGate').style.display = 'none';
-          document.getElementById('adminPanel').style.display = 'block';
-        } else if (adminMsg) {
-          adminMsg.textContent = 'パスコードが違います';
-          adminMsg.className = 'msg err';
-        }
-      });
-    }
-
-    if (adminPin) {
-      adminPin.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          if (adminBtn) adminBtn.click();
-        }
-      });
-    }
-  } catch (e) {}
+  });
 })();
+
+const ADMIN_PIN = 'unity2026'; // 好きなパスコードに変更してください
+
+document.getElementById('adminBtn').addEventListener('click', () => {
+  const input = document.getElementById('adminPin');
+  const adminMsg = document.getElementById('adminMsg');
+  if (input.value === ADMIN_PIN) {
+    document.getElementById('adminGate').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'block';
+  } else {
+    adminMsg.textContent = 'パスコードが違います';
+    adminMsg.className = 'msg err';
+  }
+});
+
+document.getElementById('adminPin').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('adminBtn').click();
+  }
+});
 </script>
 
 
