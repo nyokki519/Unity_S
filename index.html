@@ -278,15 +278,79 @@
     .ray{ animation:none; }
   }
 
-  /* 参加申込後ポップアップ */
-  .modal-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,10,6,.72);backdrop-filter:blur(5px);align-items:center;justify-content:center;padding:24px;}
-  .modal-overlay.show{display:flex;}
-  .modal{width:min(90%,420px);background:#f4ecdd;color:#2a1c14;padding:32px 26px 26px;text-align:center;border:1px solid #c9a15c;box-shadow:0 20px 60px rgba(0,0,0,.35);}
-  .modal-title{font-family:'Cinzel',serif;font-size:14px;letter-spacing:.14em;margin-bottom:22px;}
-  .modal-text{font-family:'Noto Sans JP',sans-serif;font-size:14px;line-height:2;margin:0 0 22px;}
-  .modal-text strong{display:inline-block;font-size:17px;letter-spacing:.08em;margin:4px 0;}
-  .modal-note{font-family:'Noto Sans JP',sans-serif;font-size:11px;color:#6f5a48;line-height:1.8;margin-bottom:22px;}
-  .modal-close{width:100%;padding:12px;border:1px solid #a9803f;background:#2a1c14;color:#f4ecdd;font-family:'Noto Sans JP',sans-serif;font-size:13px;cursor:pointer;}
+/* ===== 参加申込後 公式LINE案内ポップアップ ===== */
+.line-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.68);
+  box-sizing: border-box;
+}
+.line-modal-overlay.is-open {
+  display: flex;
+}
+.line-modal {
+  width: min(92vw, 430px);
+  box-sizing: border-box;
+  padding: 32px 24px 24px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 18px;
+  background: #191512;
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 20px 70px rgba(0,0,0,.55);
+  animation: lineModalIn .22s ease-out;
+}
+.line-modal-title {
+  margin: 0 0 20px;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  letter-spacing: .18em;
+  color: #d4af6a;
+}
+.line-modal-message {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.9;
+  font-weight: 500;
+}
+.line-modal-message strong {
+  display: inline-block;
+  margin: 5px 0;
+  padding: 2px 12px;
+  border-radius: 6px;
+  background: #fff;
+  color: #191512;
+  font-size: 18px;
+}
+.line-modal-note {
+  margin: 18px 0 22px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: rgba(255,255,255,.68);
+}
+.line-modal-close {
+  width: 100%;
+  min-height: 50px;
+  border: 0;
+  border-radius: 10px;
+  background: #d4af6a;
+  color: #191512;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.line-modal-close:active {
+  transform: scale(.98);
+}
+@keyframes lineModalIn {
+  from { opacity: 0; transform: translateY(10px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 </style>
 </head>
@@ -361,12 +425,15 @@ document.getElementById('form').addEventListener('submit', function () {
   const eventNameInput = document.getElementById('eventName');
   const dateInput = document.getElementById('date');
   const nameInput = document.getElementById('name');
+  const lineModal = document.getElementById('lineModal');
 
   btn.disabled = true;
   msg.textContent = '';
   msg.className = 'msg';
 
-  // iframeへの送信は結果を読み取れないため、少し待ってから成功表示にします
+  // フォームはそのままhidden_iframeへPOSTしつつ、申込直後に案内を表示
+  lineModal.classList.add('is-open');
+
   setTimeout(() => {
     msg.textContent = 'ご登録ありがとうございます。';
     msg.className = 'msg ok';
@@ -374,21 +441,26 @@ document.getElementById('form').addEventListener('submit', function () {
     dateInput.value = '';
     nameInput.value = '';
     btn.disabled = false;
-
-    // 参加申込後に公式LINE案内を表示
-    document.getElementById('lineModal').classList.add('show');
   }, 900);
-  // ここでは preventDefault しない → 通常どおりフォームがhidden_iframeへPOSTされます
+  // preventDefaultは使用しない → Googleフォームへの送信を維持
 });
 
-document.getElementById('modalClose').addEventListener('click', () => {
-  document.getElementById('lineModal').classList.remove('show');
+// ポップアップを閉じる
+document.getElementById('lineModalClose').addEventListener('click', () => {
+  document.getElementById('lineModal').classList.remove('is-open');
 });
 
-// ポップアップ外側をタップして閉じる
+// 背景部分をタップしても閉じる
 document.getElementById('lineModal').addEventListener('click', (e) => {
-  if (e.target.id === 'lineModal') {
-    e.currentTarget.classList.remove('show');
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.remove('is-open');
+  }
+});
+
+// ESCキーでも閉じる
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('lineModal').classList.remove('is-open');
   }
 });
 
@@ -414,21 +486,23 @@ document.getElementById('adminPin').addEventListener('keydown', (e) => {
 });
 </script>
 
-<div class="modal-overlay" id="lineModal" role="dialog" aria-modal="true" aria-labelledby="lineModalTitle">
-  <div class="modal">
-    <div class="modal-title" id="lineModalTitle">THANK YOU</div>
-    <p class="modal-text">
+<!-- 参加申込後の公式LINE案内 -->
+<div class="line-modal-overlay" id="lineModal" role="dialog" aria-modal="true" aria-labelledby="lineModalTitle">
+  <div class="line-modal" role="document">
+    <div class="line-modal-title" id="lineModalTitle">THANK YOU</div>
+    <p class="line-modal-message">
       参加申請ありがとうございます。<br><br>
       参加申請後は公式LINEにて<br>
       <strong>「参加希望」</strong><br>
       とメッセージ送信をお願いします。
     </p>
-    <p class="modal-note">
+    <p class="line-modal-note">
       公式LINEでのメッセージ送信をもって<br>
       参加受付完了となります。
     </p>
-    <button type="button" class="modal-close" id="modalClose">確認しました</button>
+    <button type="button" class="line-modal-close" id="lineModalClose">確認しました</button>
   </div>
 </div>
 
 </body>
+</html>
