@@ -8,6 +8,6 @@
 
 検証: `node --test tests/*.test.cjs`。静的開発サーバー: `python -m http.server 8003 --bind 127.0.0.1`（ローカルは集計対象外）。
 
-全面改修版は公開イベント選択・自由入力・参加経験・初参加者だけ必須のメール・内容確認・LINE案内を備えます。[導入手順](docs/registration-rollout.md)を参照してください。回答の非公開化と実フォームentry検証まで `registration-config.js` の `enabled:false` を維持し、既存Googleフォームへ案内します。
+全面改修版は公開イベント選択・自由入力・参加経験・内容確認・LINE案内を備えます。メール欄はありません。初参加者は公式LINE追加と「初参加/参加希望」の送信、リピーターは従来どおり「参加希望」です。[導入手順](docs/registration-rollout.md)を参照してください。既存3entryで動作し、参加経験・公開IDの保存は実Google entry設定後に任意で追加できます。
 
-画面検証: `python tools/check-registration-browser.py`（Playwright/Chromium、通信は全てモック）。メール・名前を匿名計測やブラウザーの永続保存へ送らず、送信処理の成功をGoogle受理とは扱いません。
+画面検証: python tools/check-registration-browser.py（Playwright/Chromium、通信は全てモック）。名前を匿名計測やブラウザーの永続保存へ送らず、送信処理の成功をGoogle受理とは扱いません。

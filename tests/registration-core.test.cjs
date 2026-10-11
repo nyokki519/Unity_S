@@ -19,12 +19,10 @@ const feed = {
 };
 const config = {
   enabled: true,
-  privacyVerified: true,
   entries: {
     eventName: "entry.1",
     date: "entry.2",
     name: "entry.3",
-    email: "entry.4",
     experience: "entry.5",
     eventId: "entry.6",
     mode: "entry.7",
@@ -35,7 +33,6 @@ const input = {
   event,
   name: "テスト",
   experience: "first",
-  email: "example+test@example.org",
 };
 test("JST date and next-month boundaries are independent of host timezone", () => {
   assert.equal(core.japanDate("2026-10-31T15:30:00Z"), "2026-11-01");
@@ -107,25 +104,17 @@ test("same-name different schedules are retained and incompatible feed fails", (
   );
   assert.equal(monthly.scope, "monthly");
 });
-test("first-time email required, returning empty allowed, experience never inferred", () => {
+test("experience is required; LINE message differs and no email is required", () => {
   assert.deepEqual(core.validateRegistration(input, now), {});
   assert.ok(
     core.validateRegistration({ ...input, experience: "" }, now).experience,
   );
-  assert.ok(core.validateRegistration({ ...input, email: "" }, now).email);
   assert.deepEqual(
-    core.validateRegistration(
-      { ...input, experience: "returning", email: "" },
-      now,
-    ),
+    core.validateRegistration({ ...input, experience: "returning" }, now),
     {},
   );
-  assert.ok(
-    core.validateRegistration(
-      { ...input, experience: "returning", email: "bad" },
-      now,
-    ).email,
-  );
+  assert.equal(core.lineMessage("first"), "初参加/参加希望");
+  assert.equal(core.lineMessage("returning"), "参加希望");
 });
 test("manual dates must be real and not past; published selection is mandatory", () => {
   const manual = {
@@ -140,25 +129,37 @@ test("manual dates must be real and not past; published selection is mandatory",
   assert.ok(core.validateRegistration({ ...input, event: null }, now).event);
   assert.ok(core.validateRegistration({ ...input, name: " " }, now).name);
 });
-test("privacy, entry mappings and enabled flag all required before contact submission", () => {
-  assert.equal(core.readiness(config), true);
+test("legacy three entries work; metadata is optional and duplicates are rejected", () => {
+  const legacy = {
+    enabled: true,
+    entries: { eventName: "entry.1", date: "entry.2", name: "entry.3" },
+  };
+  assert.equal(core.readiness(legacy), true);
+  assert.deepEqual(
+    [...core.buildPayload(input, legacy, now).keys()],
+    ["entry.1", "entry.2", "entry.3"],
+  );
   for (const c of [
-    { ...config, enabled: false },
-    { ...config, privacyVerified: false },
-    { ...config, entries: { ...config.entries, email: null } },
-    { ...config, entries: { ...config.entries, email: "entry.3" } },
+    { ...legacy, enabled: false },
+    { ...legacy, entries: { ...legacy.entries, name: null } },
+    { ...legacy, entries: { ...legacy.entries, experience: "entry.3" } },
+    { ...legacy, entries: { ...legacy.entries, eventId: "bad" } },
   ]) {
     assert.equal(core.readiness(c), false);
     assert.throws(() => core.buildPayload(input, c, now));
   }
 });
-test("payload uses exact verified entries and Japanese experience; manual has no stale ID", () => {
-  const body = core.buildPayload(input, config, now);
+test("payload never submits email; verified metadata and manual identity are preserved", () => {
+  const body = core.buildPayload(
+    { ...input, email: "must-not-submit@example.org" },
+    { ...config, entries: { ...config.entries, email: "entry.4" } },
+    now,
+  );
   assert.equal(body.get("entry.1"), "交流会");
   assert.equal(body.get("entry.2"), "2026-11-01");
-  assert.equal(body.get("entry.4"), input.email);
   assert.equal(body.get("entry.5"), "初めて");
   assert.equal(body.get("entry.6"), "one");
+  assert.equal(body.has("entry.4"), false);
   const manual = core.buildPayload(
     {
       ...input,
@@ -166,13 +167,11 @@ test("payload uses exact verified entries and Japanese experience; manual has no
       eventName: "未掲載",
       date: "2026-11-02",
       experience: "returning",
-      email: "",
     },
     config,
     now,
   );
   assert.equal(manual.get("entry.6"), "");
   assert.equal(manual.get("entry.5"), "参加したことがある");
-  assert.equal(manual.get("entry.4"), "");
-  assert.throws(() => core.buildPayload({ ...input, email: "" }, config, now));
+  assert.equal(manual.get("entry.7"), "自由入力");
 });

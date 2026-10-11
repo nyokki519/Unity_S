@@ -105,16 +105,13 @@ test("setup is idempotent and returns actual prefill entries, not item IDs", () 
   const f = fixture(),
     first = f.ctx.setupUnityRegistration(),
     second = f.ctx.setupUnityRegistration();
-  assert.equal(f.items.length, 4);
+  assert.equal(f.items.length, 3);
   assert.equal(JSON.stringify(first), JSON.stringify(second));
-  assert.match(first.email, /^entry\.10\d+$/);
-  assert.notEqual(first.email, "entry." + f.items[0].id);
-  assert.equal(
-    f.items.find((i) => i.title === "メールアドレス").required,
-    false,
-  );
+  assert.match(first.experience, /^entry\.10\d+$/);
+  assert.notEqual(first.experience, "entry." + f.items[0].id);
+  assert.ok(!f.items.some((i) => i.title === "メールアドレス"));
   const experience = f.items.find((i) => i.title === "Unityへの参加経験");
-  assert.equal(experience.required, true);
+  assert.equal(experience.required, false);
   assert.equal(
     JSON.stringify(experience.choices),
     JSON.stringify(["初めて", "参加したことがある"]),

@@ -7,8 +7,7 @@ function setupUnityRegistration() {
   if(props.getProperty('UNITY_PRIVATE_DESTINATION_VERIFIED')!=='true')throw new Error('Verify private storage and anonymous denial; set privacy attestation first.');
   if(DriveApp.getFileById(form.getDestinationId()).getSharingAccess()!==DriveApp.Access.PRIVATE)throw new Error('Response destination must be private.');
   var specs=[
-    {key:'email',title:'メールアドレス',type:FormApp.ItemType.TEXT,required:false,help:'初めて参加される方は入力してください。開催案内・変更連絡に使用します。リピーターは任意です。'},
-    {key:'experience',title:'Unityへの参加経験',type:FormApp.ItemType.MULTIPLE_CHOICE,required:true,choices:['初めて','参加したことがある']},
+    {key:'experience',title:'Unityへの参加経験',type:FormApp.ItemType.MULTIPLE_CHOICE,required:false,choices:['初めて','参加したことがある']},
     {key:'eventId',title:'公開イベントID',type:FormApp.ItemType.TEXT,required:false,help:'申込サイトから自動入力されます。自由入力の場合は空欄です。'},
     {key:'mode',title:'イベント入力方法',type:FormApp.ItemType.TEXT,required:false,help:'申込サイトから自動入力されます。'}
   ];
@@ -27,8 +26,7 @@ function setupUnityRegistration() {
     if(!match)throw new Error('Actual registration entry could not be determined.');
     entries[spec.key]=match[1];props.setProperty('UNITY_REGISTRATION_'+spec.key.toUpperCase()+'_ENTRY',match[1]);
   });
-  // Public entry names only. Keep enabled=false until both returning and first-time
-  // paths were verified on an isolated Form and migration was deployed.
-  var config={enabled:false,privacyVerified:true,email:entries.email,experience:entries.experience,eventId:entries.eventId,mode:entries.mode};
+  // Optional metadata entry names only. Existing three-entry submissions remain valid.
+  var config={enabled:false,privacyVerified:true,experience:entries.experience,eventId:entries.eventId,mode:entries.mode};
   console.log(JSON.stringify(config));return config;
 }

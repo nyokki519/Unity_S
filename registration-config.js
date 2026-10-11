@@ -1,7 +1,6 @@
-/* Public configuration only. Activate after owner setup and private storage verification. */
+/* Public entry names only. Existing three answers work; metadata is optional. */
 window.UnityRegistrationConfig = {
-  enabled: false,
-  privacyVerified: false,
+  enabled: true,
   feedUrl: "https://unity-analytics.vercel.app/api/public/registration-events",
   monthlyFeedUrl: "https://unity-analytics.vercel.app/api/public/events",
   timeoutMs: 8000,
@@ -9,7 +8,6 @@ window.UnityRegistrationConfig = {
     eventName: "entry.1834327533",
     date: "entry.2119680669",
     name: "entry.1786168698",
-    email: null,
     experience: null,
     eventId: null,
     mode: null,

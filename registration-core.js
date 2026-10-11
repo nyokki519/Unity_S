@@ -9,7 +9,6 @@
     "eventName",
     "date",
     "name",
-    "email",
     "experience",
     "eventId",
     "mode",
@@ -162,17 +161,15 @@
       errors.name = "お名前を100文字以内で入力してください。";
     if (!["first", "returning"].includes(data.experience))
       errors.experience = "参加経験を選んでください。";
-    const email = typeof data.email === "string" ? data.email.trim() : "";
-    if (data.experience === "first" && !email)
-      errors.email = "初めて参加される方はメールアドレスを入力してください。";
-    else if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+$/.test(email)))
-      errors.email = "メールアドレスの形式を確認してください。";
     return errors;
   }
   function readiness(config) {
-    if (config?.enabled !== true || config?.privacyVerified !== true)
-      return false;
-    const values = entryKeys.map((key) => config.entries?.[key]);
+    if (config?.enabled !== true) return false;
+    const required = ["eventName", "date", "name"];
+    if (required.some((key) => !config.entries?.[key])) return false;
+    const values = entryKeys
+      .map((key) => config.entries?.[key])
+      .filter((value) => value !== null && value !== undefined);
     return (
       values.every(
         (v) => typeof v === "string" && /^entry\.\d{1,20}$/.test(v),
@@ -189,15 +186,19 @@
       eventName: manual ? data.eventName.trim() : data.event.title,
       date: manual ? data.date : japanDate(data.event.startsAt),
       name: data.name.trim(),
-      email: data.email?.trim() || "",
       experience: data.experience === "first" ? "初めて" : "参加したことがある",
       eventId: manual ? "" : data.event.id,
       mode: manual ? "自由入力" : "公開イベント",
     };
-    for (const key of entryKeys) body.set(config.entries[key], values[key]);
+    for (const key of entryKeys)
+      if (config.entries[key]) body.set(config.entries[key], values[key]);
     return body;
   }
+  function lineMessage(experience) {
+    return experience === "first" ? "初参加/参加希望" : "参加希望";
+  }
   return {
+    lineMessage,
     japanDate,
     japanMonths,
     normalizeFeed,

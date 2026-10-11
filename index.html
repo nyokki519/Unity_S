@@ -14,7 +14,14 @@
     <script src="registration.js" defer></script>
     <script src="tracking-config.js" defer></script>
     <script src="growth-tracker.js" defer></script>
-  <noscript><style>#form, .steps { display: none; }</style></noscript>
+    <noscript
+      ><style>
+        #form,
+        .steps {
+          display: none;
+        }
+      </style></noscript
+    >
   </head>
   <body>
     <a class="skip-link" href="#registration">申込へ進む</a>
@@ -36,7 +43,9 @@
           <span>U</span>
           <div>
             <strong>はじめての方も、お久しぶりの方も。</strong>
-            <p>お名前と連絡先を確認して、<br />当日の出会いにつなげます。</p>
+            <p>
+              お名前と参加イベントを確認して、<br />当日の出会いにつなげます。
+            </p>
           </div>
         </div>
         <p class="small">
@@ -58,6 +67,7 @@
         <div class="notice" id="setup-notice" hidden>
           <strong>この画面からの申込は準備中です。</strong>
           <p>現在はGoogleフォームからお申し込みください。</p>
+          <p>初参加の方は<a href="https://lin.ee/vRZi9Rf" target="_blank" rel="noopener">公式LINEを追加</a>し、「初参加/参加希望」とお送りください。リピーターは従来どおり「参加希望」でお願いします。</p>
           <a
             id="native-form-link"
             href="https://docs.google.com/forms/d/e/1FAIpQLSfggxKoOIECTTx8yfwktoxrOT0rRKhWyLryHYYugUmhlR2XaA/viewform"
@@ -66,7 +76,8 @@
             >Googleフォームを開く ↗</a
           >
         </div>
-        <form data-unity-managed-submission="true"
+        <form
+          data-unity-managed-submission="true"
           id="form"
           novalidate
           action="https://docs.google.com/forms/d/e/1FAIpQLSfggxKoOIECTTx8yfwktoxrOT0rRKhWyLryHYYugUmhlR2XaA/formResponse"
@@ -169,25 +180,27 @@
                 </div>
                 <p class="error" id="error-experience" role="alert"></p>
               </fieldset>
-              <div class="field">
-                <label for="email"
-                  >メールアドレス
-                  <span id="email-requirement" class="optional"
-                    >参加経験を選択</span
-                  ></label
-                ><input
-                  id="email"
-                  type="email"
-                  inputmode="email"
-                  autocomplete="email"
-                  maxlength="254"
-                  placeholder="you@example.com"
-                  aria-describedby="email-help error-email"
-                />
-                <p id="email-help" class="help">
-                  初めて参加される方は入力が必要です。開催案内や変更・緊急連絡のために使用します。
+              <div
+                id="first-line-guide"
+                class="notice"
+                hidden
+                aria-live="polite"
+              >
+                <strong>初参加の方は公式LINEの追加が必要です。</strong>
+                <p>
+                  開催案内や変更のご連絡をお届けするため、公式LINEを追加し、申込後に「初参加/参加希望」とメッセージをお送りください。
                 </p>
-                <p class="error" id="error-email" role="alert"></p>
+                <a
+                  id="add-line"
+                  class="secondary"
+                  href="https://lin.ee/vRZi9Rf"
+                  target="_blank"
+                  rel="noopener"
+                  >公式LINEを追加する ↗</a
+                >
+                <p class="small">
+                  LINEを追加しただけでは運営から連絡できないため、メッセージ送信までお願いします。
+                </p>
               </div>
             </fieldset>
             <div class="policy">
@@ -196,7 +209,7 @@
                 準備の都合により、前日キャンセルは50%、当日キャンセルは100%のキャンセル料がかかります。参加費・適用条件はイベントの案内をご確認ください。
               </p>
               <p>
-                連絡先は運営が参加申込に関する連絡に使用します。メール入力だけで参加確定・自動通知が行われるものではありません。お問い合わせは<a
+                お問い合わせは<a
                   href="https://lin.ee/vRZi9Rf"
                   target="_blank"
                   rel="noopener"
@@ -211,13 +224,13 @@
           <section id="review" hidden aria-labelledby="review-title">
             <h3 id="review-title" tabindex="-1">申込内容の確認</h3>
             <p class="small">
-              イベントと連絡先に間違いがないかご確認ください。
+              イベントとお名前に間違いがないかご確認ください。
             </p>
             <dl id="review-summary" class="summary"></dl>
             <button type="button" id="edit-details" class="text-button">
               ← 入力内容を修正する
             </button>
-            <p class="help">
+            <p id="review-line-guide" class="help">
               送信後は公式LINEにて「参加希望」とメッセージをお願いします。
             </p>
             <button type="submit" id="send-button" class="primary">
@@ -240,7 +253,8 @@
           </p>
           <dl id="result-summary" class="summary"></dl>
           <div class="line-guide">
-            <strong>公式LINEで「参加希望」とお送りください。</strong
+            <strong id="result-line-guide"
+              >公式LINEで「参加希望」とお送りください。</strong
             ><a
               id="line-link"
               class="primary"
@@ -263,6 +277,7 @@
           ><div class="notice">
             <strong>Googleフォームからお申し込みください。</strong>
             <p>この画面のイベント選択にはJavaScriptが必要です。</p>
+            <p>初参加の方は<a href="https://lin.ee/vRZi9Rf">公式LINEを追加</a>し、「初参加/参加希望」とお送りください。リピーターは「参加希望」でお願いします。</p>
             <a
               href="https://docs.google.com/forms/d/e/1FAIpQLSfggxKoOIECTTx8yfwktoxrOT0rRKhWyLryHYYugUmhlR2XaA/viewform"
               >Googleフォームを開く</a

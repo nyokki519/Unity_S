@@ -11,7 +11,8 @@
     selectedId = "",
     selectedSnapshot = "",
     busy = false,
-    sent = false;
+    sent = false,
+    submittedExperience = null;
   const requestedId = new URL(location.href).searchParams.get("event_id");
   let initialSelection = true;
   const dateFormat = new Intl.DateTimeFormat("ja-JP", {
@@ -46,18 +47,10 @@
       name: $("name").value,
       experience:
         form.querySelector('input[name="experience"]:checked')?.value || "",
-      email: $("email").value,
     };
   }
   function errors(values) {
-    for (const key of [
-      "event",
-      "eventName",
-      "date",
-      "name",
-      "experience",
-      "email",
-    ]) {
+    for (const key of ["event", "eventName", "date", "name", "experience"]) {
       $("error-" + key).textContent = values[key] || "";
       const input = $(key);
       if (input)
@@ -78,10 +71,7 @@
   function validate(all) {
     const d = data(),
       values = core.validateRegistration(d);
-    if (!all)
-      for (const key of ["name", "experience", "email"]) delete values[key];
-    if (all && d.email && $("email").validity.typeMismatch)
-      values.email = "メールアドレスの形式を確認してください。";
+    if (!all) for (const key of ["name", "experience"]) delete values[key];
     return errors(values);
   }
   function show(id) {
@@ -124,7 +114,7 @@
       ],
       ["お名前", d.name],
       ["参加経験", d.experience === "first" ? "初めて" : "参加したことがある"],
-      ["メール", d.email || "未入力（任意）"],
+      ["LINEで送る文", core.lineMessage(d.experience)],
     ];
     target.replaceChildren();
     for (const [title, value] of rows) {
@@ -269,7 +259,12 @@
       selectedSnapshot = "";
       renderEvents();
       $("feed-status").textContent =
-        (error.name === "AbortError" ? "イベントの読み込みがタイムアウトしました。" : error.status ? "イベント一覧を取得できませんでした。" : "イベントの応答を確認できませんでした。") + " 案内を受けたイベントは自由入力できます。";
+        (error.name === "AbortError"
+          ? "イベントの読み込みがタイムアウトしました。"
+          : error.status
+            ? "イベント一覧を取得できませんでした。"
+            : "イベントの応答を確認できませんでした。") +
+        " 案内を受けたイベントは自由入力できます。";
       if (current !== "event-step") show("event-step");
     } finally {
       busy = false;
@@ -299,14 +294,28 @@
   form.querySelectorAll('input[name="experience"]').forEach((input) =>
     input.addEventListener("change", () => {
       const first = input.value === "first";
-      $("email").required = first;
-      $("email-requirement").textContent = first ? "必須" : "任意";
-      $("email-requirement").className = first ? "required" : "optional";
+      $("first-line-guide").hidden = !first;
       $("error-experience").textContent = "";
-      $("error-email").textContent = "";
-      $("email").setAttribute("aria-invalid", "false");
+      updateLineGuide();
     }),
   );
+  function contactExperience() {
+    return submittedExperience ?? data().experience;
+  }
+  function updateLineGuide() {
+    const first = contactExperience() === "first",
+      message = core.lineMessage(contactExperience());
+    $("review-line-guide").textContent = first
+      ? `申込後は公式LINEを追加し、「${message}」とメッセージをお送りください。`
+      : "送信後は従来どおり、公式LINEにて「参加希望」とメッセージをお願いします。";
+    $("result-line-guide").textContent = first
+      ? `公式LINEの追加と「${message}」の送信をお願いします。`
+      : "公式LINEで「参加希望」とお送りください。";
+    $("line-link").textContent = first
+      ? "公式LINEを追加してメッセージを送る ↗"
+      : "公式LINEを開く ↗";
+    $("copy-line").textContent = `「${message}」をコピー`;
+  }
   $("review-button").addEventListener("click", () => {
     if (!ready || !validate(true)) return;
     summary($("review-summary"));
@@ -338,6 +347,7 @@
       ).find((input) => input.name === trackingEntry);
       if (tracking) body.set(trackingEntry, tracking.value);
     }
+    submittedExperience = data().experience;
     sent = true;
     form.dispatchEvent(new Event("unity:registration-send"));
     $("send-button").disabled = true;
@@ -365,18 +375,22 @@
       ? "送信処理を行いました"
       : "送信結果を確認できません";
     $("result-message").textContent = transport
-      ? "次に、公式LINEから参加希望のメッセージをお願いします。"
+      ? contactExperience() === "first"
+        ? "公式LINEを追加し、「初参加/参加希望」とメッセージをお送りください。"
+        : "次に、公式LINEから「参加希望」のメッセージをお願いします。"
       : "通信が中断されました。すでに届いている可能性もあるため、再送せず公式LINEへお問い合わせください。";
     $("result-title").focus();
   });
   $("copy-line").addEventListener("click", async () => {
     try {
-      await navigator.clipboard.writeText("参加希望");
+      await navigator.clipboard.writeText(
+        core.lineMessage(contactExperience()),
+      );
       $("copy-status").textContent =
         "コピーしました。LINEに貼り付けてお送りください。";
     } catch {
       $("copy-status").textContent =
-        "コピーできませんでした。「参加希望」と入力してお送りください。";
+        `コピーできませんでした。「${core.lineMessage(contactExperience())}」と入力してお送りください。`;
     }
   });
   $("date").min = core.japanDate(new Date());
@@ -409,7 +423,8 @@
       for (const panel of panels) $(panel).hidden = true;
       $("result").hidden = false;
       $("result-title").textContent = "送信結果を確認できません";
-      $("result-message").textContent = "送信操作済みです。再送せず公式LINEへお問い合わせください。";
+      $("result-message").textContent =
+        "送信操作済みです。再送せず公式LINEへお問い合わせください。";
     }
   });
   window.addEventListener("pageshow", (event) => {

@@ -1,61 +1,58 @@
 # 参加申込改修の導入手順
 
-## 実装と現在の状態
+## 最新方針と実装
 
-イベント選択／自由入力、参加経験、初参加者だけ必須のメール、内容確認、LINE案内を実装した。新規連絡先の収集は `registration-config.js` の `enabled:false` で停止している。メールentry未設定や `privacyVerified:false` でも停止する。停止中は既存Googleフォームへ案内し、メールを入力・送信させない。
+メールは入力・送信・収集しない。参加経験を未選択から必須で選び、初参加者には公式LINEの追加が必要であることと、追加後に「初参加/参加希望」とメッセージを送る案内を表示する。リピーターは従来どおり「参加希望」。確認画面・結果画面・コピーボタンが同じ方針に連動する。LINEの友だち追加や送信完了は自動確認しない。
 
-コードのテストと本番Google設定の検証は別。Googleへの編集用資格情報が提供されていないため、以下の所有者操作は未実施。本番への架空回答、LINE／メール実送信は行っていない。
+イベント選択／自由入力、入力確認／修正、キーボード・スマートフォン対応、送信結果不明時の案内を実装した。既存のイベント名・日時・お名前の3entryを使い、追加項目がなくても申込できる。registration-config.jsのenabled:trueはこの既存互換モード。任意metadata entryを推測して送らず、匿名計測entryも維持する。
 
-## 導入順序
+本番Googleへの架空回答、LINE／メール実送信は行っていない。Google編集資格情報がないため、項目追加と実保存は未実施。コード／モックテストの成功は本番設定や受理の証明ではない。
 
-1. **Analytics側の認証済み読取を準備する。** 既存サービスアカウントの `GOOGLE_SHEETS_CREDENTIALS` をサーバー環境で利用する。回答シートをそのアカウントへ閲覧者として共有する。秘密JSONを公開JSやGitへ入れない。読取スコープは `spreadsheets.readonly`。現在の4列の読取と、運営用管理キー（既存 `CRON_SECRET`）での参加者表示を確認する。
-2. **Analytics変更をデプロイする。** `/api/participants` は未認証401、認証後のみ読取。`/participants` の初期HTMLに参加者名を埋め込まない。LINE通知の読取は同じプライベートソースを使う。既存 `/api/public/events` は今月分の契約を維持し、追加 `/api/public/registration-events` は今月・翌月の開催前イベントを返す。資格情報や共有が不足した場合、匿名取得へ戻さず503で止まる。
-3. **回答保存先の公開を停止する。** Google Driveの一般アクセスを「制限付き」にし、スプレッドシートの「ウェブに公開」も停止する。メール列だけ／別タブだけの非表示では不十分。従来の公開CSVやコピーがある場合も停止・点検する。編集者・閲覧者を必要な運営メンバーに限定する。
-4. **匿名アクセス拒否を検証する。** ログアウト状態でシート、gviz、CSV、ウェブ公開URLへアクセスし、データを取得できないことを確認する。参加者の値をチャットやログへコピーしない。Driveの「制限付き」表示だけで検証済みとしない。認証済みAnalyticsの参加者表示とLINEのプレビューは動作することを確認する。実送信はしない。
-5. **既存フォームのApps Scriptへ補助コードを追加する。** フォームからApps Scriptを開き `integrations/google-form/RegistrationSetup.gs` を追加する。既存 `GrowthConfirmation.gs` と匿名計測トリガーは残す。手順3・4完了後だけScript Propertiesの `UNITY_PRIVATE_DESTINATION_VERIFIED` に `true` を設定する。これは所有者による確認の記録であり、コードだけで匿名拒否を証明するものではない。
-6. **`setupUnityRegistration()` を実行する。** Drive共有がPRIVATEでない場合は止まる。メール、参加経験、公開イベントID、入力方法の4質問を冪等に追加する。既存質問のタイトル重複・型の衝突では止まる。Googleのprefill URLから実entryを取得する。回答は送信しない。既存3項目、回答先、「タイムスタンプ」「イベント名」「日時」「お名前」は変更しない。
-7. **隔離した検証用フォームで両方を確かめる。** 初参加者のメールあり、リピーターのメール空欄を保存できることを検証する。メール質問は一律必須にしない。参加経験は必須。セットアップコードは「初参加者は入力してください」の案内と任意メール質問を作るが、標準Googleフォーム自体の条件付き強制検証は実装していない。標準フォームでも強制するなら、セクション分岐・各entryを別途検証する。ブラウザーの条件付きrequiredはサーバー保証ではない。
-8. **公開設定ファイルへ実entryを反映する。** 補助コード出力の email/experience/eventId/mode は `registration-config.js` の `entries` の同じキーへ設定する。番号を推測しない。匿名計測用 `tracking-config.js` のentryを使い回さない。設定が重複・未設定なら有効化できない。
-9. **最後に `privacyVerified:true`、`enabled:true` を設定してUnity_Sを公開する。** 所有者操作と隔離検証の前に有効化しない。HP変更では、個別外部イベントURLは維持し、共通フォームへのリンクだけ `event_id` を付ける。
+## 公開・導入順
+
+1. **Unity_SとHPのコードを公開する。** 既存3項目の保存を維持し、メール設定を必要としない。公開後のGET確認と画面確認は行うが、架空の本番回答は送らない。HPは個別外部URLを維持し、共通フォームへのリンクのみevent_idを追加する。
+2. **Analyticsの公開イベントAPIを追加する。** /api/public/registration-eventsは今月・翌月の開催前イベントを返す。既存の今月API契約は維持する。同じ日程でも異なる公開IDは申込候補に残す。新API未公開の404時だけ今月APIへ戻り、今月のみと表示する。503等では自由入力を案内する。
+3. **Analyticsの非公開参加者読取をデプロイ前に検証する。** 既存GOOGLE_SHEETS_CREDENTIALSと回答シートへの閲覧権限を確認する。認証済みSheets APIはread-onlyで許可列のみ読み、メール列は取得しない。/api/participantsは既存CRON_SECRET認証必須、初期HTML/RSCに参加者名を含めない。資格情報不足で匿名gvizへ戻さない。資格情報／共有が未確認のまま変更をデプロイすると参加者表示やLINE読取が止まる。
+4. **回答保存先を非公開に移行する。** 認証済み読取、参加者UI、LINEプレビューを確認後、Drive一般アクセスを制限付きにし、ウェブ公開・公開コピーも停止する。ログアウト状態のシート/gviz/CSV等で匿名拒否を検証する。列・タブ非表示だけで保護済みとしない。これらはGoogle所有者操作で、メールなし申込UIの利用開始とは別。
+
+## 任意の参加経験・公開ID保存
+
+Googleへのmetadata保存を有効にする場合だけ、以下を行う。未設定のままでも既存3項目は送信できるが、**同日同名イベントはGoogle保存後に公開IDで区別できない**。完全なID連携には実eventId entryの設定が必要。
+
+1. 既存フォームのApps Scriptへintegrations/google-form/RegistrationSetup.gsを追加する。既存GrowthConfirmation.gsと匿名計測トリガーは残す。
+2. 保存先の非公開設定と匿名拒否を検証し、Script PropertiesのUNITY_PRIVATE_DESTINATION_VERIFIEDをtrueにする。これは所有者の確認記録であり、コードだけで匿名拒否を証明するものではない。
+3. setupUnityRegistration()を実行する。参加経験・公開イベントID・イベント入力方法の3質問だけを冪等に追加し、実prefill entryを返す。メール質問は作らない。Google側では3質問とも任意とし、旧3項目の送信を拒否しない。既存ヘッダー・回答・トリガーは保持する。
+4. 隔離した検証フォームで旧3項目とmetadata付きの両方の保存を確認する。番号を推測せず、実entryをregistration-config.jsのexperience/eventId/modeへ設定する。未設定項目は送信されない。不正・重複設定は送信を止める。
+5. ID付き回答は日付＋IDで分け、IDなし旧行を推測照合しない。LINEの新ID通知は初期OFF。管理画面の公開IDと実効OFFを確認し、プレビュー・時刻・旧行との重複を確認後に個別ONする。実LINE送信を検証に使わない。
 
 ## 項目対応
 
 | 項目 | 公開設定キー | 現状 |
 |---|---|---|
 | イベント名 | entries.eventName | entry.1834327533（既存） |
-| 参加日 | entries.date | entry.2119680669（既存、JST YYYY-MM-DD） |
+| 参加日 | entries.date | entry.2119680669（JST YYYY-MM-DD） |
 | お名前 | entries.name | entry.1786168698（既存） |
-| メールアドレス | entries.email | 補助コードで実entry取得後に設定 |
-| Unityへの参加経験 | entries.experience | 初めて／参加したことがある |
-| 公開イベントID | entries.eventId | 自由入力は空欄 |
-| イベント入力方法 | entries.mode | 公開イベント／自由入力 |
+| Unityへの参加経験 | entries.experience | 任意追加。UIは未選択から必須 |
+| 公開イベントID | entries.eventId | 任意追加。自由入力は空欄 |
+| イベント入力方法 | entries.mode | 任意追加。公開イベント／自由入力 |
 | 匿名計測ID | UnityGrowthConfig.formEntry | 既存設定を維持 |
 
-メール・参加経験は参加者一覧APIへ追加しない。プライベート読取はヘッダーを確認し、承認した4列と任意のステータス・Member ID・イベントID列のみ取得する。メール列は読取対象にしない。イベントIDがある行と旧行は自動照合せず別に保つ。同日同名でも異なるIDは統合しない。
+メール項目は存在しない。旧設定にemail entryが残っていても送信しない。初参加者のLINEメッセージは初参加/参加希望、リピーターは参加希望。
 
-ID付きのLINE通知元は従来の名前キーと分ける。新しいIDの通知は初期OFFで、運営がプレビュー・時刻設定・履歴確認後に個別ONにする。既存キーの通知履歴と設定は保持する。旧行とID付き行を同じ開催と推測して二重配信しない。
+## 送信結果・復旧
 
-## 送信結果の意味
+Googleへのno-cors POSTは受理／保存確認ではない。通信が完了した場合は「送信処理を行いました」、中断時は「送信結果を確認できません」と表示する。自動再送せずLINEへ案内する。画面内では入力を保持し、ページを離れると個人入力を消去する。未送信フォームは戻った際に初期化し、送信操作済みは再送しない案内と正しいLINEメッセージを保つ。
 
-Googleフォームへのno-cors POSTは受付・シート保存の確認ではない。正常な通信完了は「送信処理を行いました」、切断／タイムアウトは「送信結果を確認できません」と表示し、入力をその画面のメモリー内に保持する。ページを離れたら連絡先を消去し、未送信フォームは戻った際に初期化する。送信操作済みの結果画面は再送できない案内を保つ。自動再送せず、LINEでの確認へ案内する。受付確定、自動メール、実参加を推測しない。
+UI停止はenabled:falseを公開する。既存の回答・追加列・質問・計測履歴を削除しない。非公開化後のシートを復旧のために再公開しない。
 
-## 開発・検証
+## 開発検証
 
-```sh
-cd /workspace/Unity_S
-node --test tests/*.test.cjs
-REGISTRATION_SCREENSHOT_DIR=/tmp/unity-registration-screenshots python tools/check-registration-browser.py
-python -m http.server 8003 --bind 127.0.0.1
-```
+- Unity_S: node --test tests/*.test.cjs、python tools/check-registration-browser.py。
+- HP: Node、SEO Python、python tools/check-monthly-events.py、python tools/check-growth-browser.py --form-root /workspace/Unity_S。
+- Analytics: npm test、npm run typecheck、npm run build。ローカル本番buildを起動しpython tools/check-registration-admin-browser.py --base-url http://127.0.0.1:3101。
 
-ブラウザーテストはPlaywrightとChromiumを使い、ネットワークを全てモックする。実回答・実LINE・実計測は作らない。検証用entry番号はテスト内限定で、本番設定には書かない。ローカルから本番APIを直接読むためにCORSを広げない。
+ブラウザーテストはPlaywright/Chromiumを使い、外部通信を全てモックする。テストentryは本番設定へ入れない。画像内のイベント・参加者は検証fixture。
 
-Analytics: focused tests → `npm test` → `npm run typecheck` → `npm run build`。HP: Nodeテスト、SEOテスト、`python tools/check-monthly-events.py`、`python tools/check-growth-browser.py --form-root /workspace/Unity_S`。Analyticsのビルドをローカル起動したら `python tools/check-registration-admin-browser.py --base-url http://127.0.0.1:3101` で認証／解除とLINE初期OFFをモック確認できる。
+## 未実施の外部作業
 
-## 停止・復旧
-
-新申込UIを停止するには `enabled:false` を公開する。回答先は非公開のまま維持する。既存回答・追加質問・列・計測履歴を削除しない。コードを戻す際もメールを含むシートを再公開しない。認証済み読取の不具合を匿名gvizへのフォールバックで直さない。Googleフォームへ直接誘導する場合も、メール保存先の非公開化を維持する。
-
-## 未実施の本番作業
-
-Googleフォームの所有者権限による質問追加、実entry取得、回答先の匿名拒否と認証読取の実証、隔離フォームでの実保存、本番への有効化。これらにはGoogle側の権限が必要。コードとモックテストの成功を本番設定の完了と扱わない。
+本番へのマージ／公開、Googleフォームの任意metadata追加・実entry取得、匿名拒否と認証読取の実証、隔離フォームでの実保存。メール用質問・保存・有効化の作業は撤回され、必要ない。Google操作に必要な資格情報はこの環境にはない。
