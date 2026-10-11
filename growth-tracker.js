@@ -42,7 +42,7 @@
   if(form){
    const entry=w.UnityGrowthConfig?.formEntry;
    if(typeof entry==='string'&&/^entry\.\d{1,20}$/.test(entry)){const input=w.document.createElement('input');input.type='hidden';input.name=entry;input.value=journey.id;form.appendChild(input);}
-   form.addEventListener('submit',()=>record('form_submit'),true);
+   form.addEventListener(form.dataset.unityManagedSubmission==='true'?'unity:registration-send':'submit',()=>record('form_submit'),true);
    // The existing no-cors promise does NOT establish Google acceptance.
    if(w.history?.replaceState){try{const u=new URL(w.location.href);u.searchParams.delete('unity_journey');u.searchParams.delete('unity_source');w.history.replaceState(w.history.state,'',u.pathname+u.search+u.hash);}catch{}}
   }
