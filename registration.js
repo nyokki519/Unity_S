@@ -238,7 +238,9 @@
         }
       }
       if (initialSelection && requestedId && !$("manual-toggle").checked) {
-        const candidate = events.find((e) => e.id === requestedId);
+        const candidate = events.find(
+          (e) => e.id === requestedId || e.aliases.includes(requestedId),
+        );
         if (candidate) {
           selectedId = candidate.id;
           selectedSnapshot = signature(candidate);

@@ -53,6 +53,7 @@
     else if (payload.month === months[0]) scope = "monthly";
     else throw Error("invalid_feed_period");
     const seen = new Set();
+    const schedules = new Map();
     const events = [];
     for (const row of payload.events) {
       if (
@@ -103,7 +104,7 @@
           url = link.href;
       } catch {}
       seen.add(row.id);
-      events.push({
+      const event = {
         id: row.id,
         title: clean(row.title, 300),
         startsAt: new Date(instant).toISOString(),
@@ -117,7 +118,18 @@
         location: clean(row.location, 250) || null,
         category: clean(row.category, 80) || null,
         url,
-      });
+        aliases: [],
+      };
+      const key = JSON.stringify([
+        event.title, event.startsAt, event.endsAt && new Date(event.endsAt).toISOString(),
+        event.location, event.category, event.url,
+      ]);
+      const existing = schedules.get(key);
+      if (existing) existing.aliases.push(event.id);
+      else {
+        schedules.set(key, event);
+        events.push(event);
+      }
     }
     return {
       scope,

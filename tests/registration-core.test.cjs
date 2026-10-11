@@ -77,6 +77,16 @@ test("feed excludes started and malformed schedules and projects only public fie
     null,
   );
 });
+test("duplicate schedules collapse while their IDs remain selectable", () => {
+  const result = core.normalizeFeed({ ...feed, events: [
+    event,
+    { ...event, id: "duplicate", startsAt: "2026-10-31T15:30:00Z" },
+    { ...event, id: "other-place", location: "渋谷" },
+    { ...event, id: "later", startsAt: "2026-11-01T02:00:00+09:00" },
+  ] }, now);
+  assert.equal(result.events.length, 3);
+  assert.deepEqual(result.events.find(e => e.id === "one").aliases, ["duplicate"]);
+});
 test("same-name different schedules are retained and incompatible feed fails", () => {
   assert.equal(
     core.normalizeFeed(
