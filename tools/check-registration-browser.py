@@ -1,12 +1,12 @@
 """Offline functional browser verification; no real Google submissions or messages."""
 from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
-import json, mimetypes, os, shutil
+import json, mimetypes, os, shutil, re
 from playwright.sync_api import sync_playwright
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=Path(os.environ.get('REGISTRATION_SCREENSHOT_DIR','/tmp/unity-registration-screenshots')); OUT.mkdir(parents=True,exist_ok=True)
-CONFIG={'enabled':True,'entries':{'eventName':'entry.1834327533','date':'entry.2119680669','name':'entry.1786168698','experience':'entry.8002','eventId':'entry.8003','mode':'entry.8004'}}
+CONFIG={'enabled':True,'entries':dict(re.findall(r'(eventName|date|name|experience|eventId|mode):\s*"(entry\.\d+)"',(ROOT/'registration-config.js').read_text()))}
 EVENT={'id':'one','title':'Unity 品川交流会','startsAt':'2026-10-12T05:00:00Z','endsAt':None,'location':'品川','category':'交流会','url':None}
 state={'events':[EVENT,dict(EVENT,id='two',startsAt='2026-11-02T06:00:00Z')],'failure':False,'ready':True,'send_failure':False,'metadata':True}
 posts=[]; growth=[]
@@ -67,11 +67,12 @@ with sync_playwright() as p:
     page.locator('#edit-details').click();page.locator('#experience-first').check();page.locator('#review-button').click();page.locator('#send-button').dblclick()
     page.wait_for_timeout(300);assert len(posts)==1
     assert sum(g['stage']=='form_submit' for g in growth)==1
-    assert posts[0]['entry.8002']==['初めて'];assert 'entry.8001' not in posts[0]
+    assert posts[0]['entry.232206764']==['初めて'];assert 'entry.8001' not in posts[0]
     assert page.locator('#copy-line').inner_text()=='「初参加/参加希望」をコピー'
     context.grant_permissions(['clipboard-read','clipboard-write']);page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')=='初参加/参加希望'
     assert posts[0]['entry.1834327533']==[EVENT['title']];assert posts[0]['entry.2119680669']==['2026-10-12']
-    assert posts[0]['entry.8003']==['one'];assert 'entry.2127795955' in posts[0]
+    assert posts[0]['entry.1146545082']==['公開イベント']
+    assert posts[0]['entry.603909823']==['one'];assert 'entry.2127795955' in posts[0]
     assert 'Google側の受付・保存はこの画面では確認できません' in page.locator('#result').inner_text()
     assert page.locator('#line-link').get_attribute('href')=='https://lin.ee/vRZi9Rf'
     assert all(set(g)=={'journeyId','source','stage'} for g in growth)
@@ -92,7 +93,8 @@ with sync_playwright() as p:
     page.locator('#review-button').click();page.screenshot(path=str(OUT/'04-mobile-manual-review.png'),full_page=True)
     state['send_failure']=True;page.locator('#send-button').click();page.wait_for_timeout(300)
     assert '送信結果を確認できません' in page.locator('#result-title').inner_text()
-    assert posts[-1]['entry.8003']==[''];assert posts[-1]['entry.1834327533']==['未掲載テスト']
+    assert posts[-1]['entry.1146545082']==['自由入力']
+    assert posts[-1]['entry.603909823']==[''];assert posts[-1]['entry.1834327533']==['未掲載テスト']
     assert page.locator('#name').input_value()=='Synthetic manual'
     assert page.locator('#copy-line').inner_text()=='「参加希望」をコピー'
     page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')=='参加希望'

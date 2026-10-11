@@ -6,7 +6,7 @@
 
 イベント選択／自由入力、入力確認／修正、キーボード・スマートフォン対応、送信結果不明時の案内を実装した。既存のイベント名・日時・お名前の3entryを使い、追加項目がなくても申込できる。registration-config.jsのenabled:trueはこの既存互換モード。任意metadata entryを推測して送らず、匿名計測entryも維持する。
 
-本番Googleへの架空回答、LINE／メール実送信は行っていない。Google編集資格情報がないため、項目追加と実保存は未実施。コード／モックテストの成功は本番設定や受理の証明ではない。
+本番Googleへの架空回答、LINE／メール実送信は行っていない。所有者が設定用スクリプトを実行し、参加経験・公開ID・入力方法の実entryを提供したため、公開設定へ反映済み。実保存は未検証。コード／モックテストの成功は本番設定や受理の証明ではない。
 
 ## 公開・導入順
 
@@ -17,7 +17,7 @@
 
 ## 任意の参加経験・公開ID保存
 
-Googleへのmetadata保存を有効にする場合だけ、以下を行う。未設定のままでも既存3項目は送信できるが、**同日同名イベントはGoogle保存後に公開IDで区別できない**。完全なID連携には実eventId entryの設定が必要。
+Googleへのmetadata保存を有効にする場合だけ、以下を行う。未設定のままでも既存3項目は送信できるが、**同日同名イベントはGoogle保存後に公開IDで区別できない**。今回、所有者から実eventId entryを受領し設定済み。実保存とAnalytics側の導入確認は別途必要。
 
 1. 既存フォームのApps Scriptへintegrations/google-form/RegistrationSetup.gsを追加する。既存GrowthConfirmation.gsと匿名計測トリガーは残す。
 2. 保存先の非公開設定と匿名拒否を検証し、Script PropertiesのUNITY_PRIVATE_DESTINATION_VERIFIEDをtrueにする。これは所有者の確認記録であり、コードだけで匿名拒否を証明するものではない。
@@ -32,9 +32,9 @@ Googleへのmetadata保存を有効にする場合だけ、以下を行う。未
 | イベント名 | entries.eventName | entry.1834327533（既存） |
 | 参加日 | entries.date | entry.2119680669（JST YYYY-MM-DD） |
 | お名前 | entries.name | entry.1786168698（既存） |
-| Unityへの参加経験 | entries.experience | 任意追加。UIは未選択から必須 |
-| 公開イベントID | entries.eventId | 任意追加。自由入力は空欄 |
-| イベント入力方法 | entries.mode | 任意追加。公開イベント／自由入力 |
+| Unityへの参加経験 | entries.experience | entry.232206764（設定済み）。UIは未選択から必須 |
+| 公開イベントID | entries.eventId | entry.603909823（設定済み）。自由入力は空欄 |
+| イベント入力方法 | entries.mode | entry.1146545082（設定済み）。公開イベント／自由入力 |
 | 匿名計測ID | UnityGrowthConfig.formEntry | 既存設定を維持 |
 
 メール項目は存在しない。旧設定にemail entryが残っていても送信しない。初参加者のLINEメッセージは初参加/参加希望、リピーターは参加希望。
@@ -55,4 +55,4 @@ UI停止はenabled:falseを公開する。既存の回答・追加列・質問�
 
 ## 未実施の外部作業
 
-本番へのマージ／公開、Googleフォームの任意metadata追加・実entry取得、匿名拒否と認証読取の実証、隔離フォームでの実保存。メール用質問・保存・有効化の作業は撤回され、必要ない。Google操作に必要な資格情報はこの環境にはない。
+本番へのマージ／公開、匿名拒否と認証読取の実証、隔離フォームでの実保存。Googleフォームのmetadata追加・実entry取得は所有者の実行ログにより報告され、コードへ反映済み。メール用質問・保存・有効化の作業は撤回され、必要ない。Google操作に必要な資格情報はこの環境にはない。
