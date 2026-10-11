@@ -18,7 +18,17 @@ body {
   margin: 0;
   color: var(--ink);
   background: var(--paper);
+  isolation: isolate;
   font: 15px/1.8 var(--sans);
+}
+/* The background is decorative; text stays on opaque, warm reading surfaces. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, #30261f30, #30261f14), url("assets/unity-cafe-background.webp") center / cover no-repeat;
+  pointer-events: none;
 }
 [hidden] {
   display: none !important;
@@ -71,8 +81,13 @@ input:focus {
 }
 header {
   max-width: 1200px;
-  margin: auto;
-  padding: 26px 40px;
+  width: calc(100% - 64px);
+  margin: 24px auto 0;
+  padding: 12px 28px;
+  background: #fffdf9f2;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 8px 32px #30261f14;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -86,31 +101,38 @@ header > a:last-child {
   text-decoration: none;
 }
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
   text-decoration: none;
-  font:
-    38px/0.95 Georgia,
-    serif;
   color: var(--ink);
 }
-.brand span {
+.brand img {
   display: block;
-  font: 9px/1.6 var(--sans);
+  width: 92px;
+  height: auto;
+}
+.brand span {
+  font: 10px/1.6 var(--sans);
   letter-spacing: 2.4px;
-  margin-top: 8px;
 }
 main {
   max-width: 1120px;
-  margin: 56px auto 72px;
+  margin: 36px auto 48px;
   display: grid;
   grid-template-columns: 1fr 1.2fr;
-  gap: 68px;
+  gap: 40px;
   padding: 0 32px;
   align-items: start;
 }
 .intro {
   position: sticky;
   top: 42px;
-  padding-top: 35px;
+  padding: 30px;
+  background: #fffdf9ed;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 12px 40px #30261f12;
 }
 .eyebrow {
   font-size: 10px;
@@ -120,7 +142,7 @@ main {
   margin: 0 0 12px;
 }
 h1 {
-  font-size: 44px;
+  font-size: 38px;
   line-height: 1.55;
   letter-spacing: 3px;
   font-weight: 500;
@@ -132,16 +154,16 @@ h1 {
 .intro-note {
   display: flex;
   gap: 18px;
-  margin: 54px 0 28px;
+  margin: 34px 0 24px;
   padding: 24px 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
-.intro-note > span {
-  font:
-    48px Georgia,
-    serif;
-  color: #9e845b;
+.intro-note > img {
+  width: 76px;
+  height: auto;
+  align-self: flex-start;
+  flex-shrink: 0;
 }
 .intro-note strong {
   font-size: 14px;
@@ -162,10 +184,10 @@ h1 {
 }
 .card {
   min-width: 0;
-  background: var(--white);
+  background: #fffdf9fa;
   border: 1px solid var(--line);
   border-radius: 18px;
-  box-shadow: 0 12px 40px #30261f08;
+  box-shadow: 0 12px 40px #30261f20;
   padding: 32px;
 }
 h2 {
@@ -476,7 +498,10 @@ input[type="radio"] {
 }
 footer {
   max-width: 1200px;
-  margin: auto;
+  width: calc(100% - 64px);
+  margin: 0 auto 24px;
+  background: #fffdf9f2;
+  border-radius: 14px;
   border-top: 1px solid var(--line);
   padding: 22px 40px;
   display: flex;
@@ -495,7 +520,7 @@ footer {
   }
   .intro {
     position: static;
-    padding-top: 0;
+    padding: 22px 24px;
   }
   .intro h1 {
     font-size: 30px;
@@ -515,11 +540,12 @@ footer {
     margin-top: 12px;
   }
   header {
-    padding: 20px 24px;
+    width: calc(100% - 32px);
+    margin-top: 16px;
+    padding: 10px 18px;
   }
-  .brand {
-    font-size: 31px;
-  }
+  .brand img { width: 72px; }
+  .brand span { display: none; }
   .card {
     padding: 25px 23px;
     border-radius: 13px;
@@ -535,6 +561,7 @@ footer {
     gap: 8px;
   }
   footer {
+    width: calc(100% - 32px);
     padding: 20px 24px;
   }
 }
