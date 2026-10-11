@@ -39,6 +39,11 @@ with sync_playwright() as p:
     context.route('**/*',route)
     page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
     page.clock.install(time=__import__('datetime').datetime(2026,10,11,tzinfo=__import__('datetime').timezone.utc))
+    state['events'].append(dict(EVENT,id='duplicate'))
+    page.goto('https://nyokki519.github.io/Unity_S/?event_id=duplicate');page.wait_for_timeout(300)
+    assert page.locator('#event-list input[type=radio]').count()==2, 'duplicate event option remains'
+    assert page.locator('#event-one').is_checked(), 'duplicate ID deep-link no longer selects its event'
+    state['events'].pop()
     state['events'][1]['title']='交流会 <script>unsafe</script>'
     page.goto('https://nyokki519.github.io/Unity_S/?event_id=one');page.wait_for_timeout(300)
     assert '<script>unsafe</script>' in page.locator('#event-list').inner_text()
