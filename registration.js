@@ -371,7 +371,7 @@
     sent = true;
     $("send-button").disabled = true;
     await claimReady;
-    if (claimInfo && config.entries?.eventId && body.has(config.entries.eventId) && data().mode === "published" && data().event.id.length <= 128) {
+    if (claimInfo && claimInfo.entry !== window.UnityGrowthConfig?.formEntry && config.entries?.eventId && body.has(config.entries.eventId) && data().mode === "published" && data().event.id.length <= 128) {
       try {
         const claim = await window.UnityQrClaim.create(window.crypto);
         body.set(claimInfo.entry, claim.hash);

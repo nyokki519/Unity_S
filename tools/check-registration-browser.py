@@ -149,7 +149,8 @@ with sync_playwright() as p:
     message=unquote(href.split('?')[1]);code=message.split(' ')[1]
     import hashlib
     assert posts[-1]['entry.998877']==[hashlib.sha256(code.encode()).hexdigest()]
-    assert all(code not in json.dumps(g) for g in growth)
+    assert all(code not in json.dumps(g) and hashlib.sha256(code.encode()).hexdigest() not in json.dumps(g) and 'Synthetic claim' not in json.dumps(g) for g in growth)
+    assert 'noreferrer' in page.locator('#line-link').get_attribute('rel')
     assert code not in page.evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)')
     assert '確認できません' in page.locator('#result-title').inner_text()
     page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')==message
