@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=Path(os.environ.get('REGISTRATION_SCREENSHOT_DIR','/tmp/unity-registration-screenshots')); OUT.mkdir(parents=True,exist_ok=True)
 CONFIG={'enabled':True,'entries':dict(re.findall(r'(eventName|date|name|experience|eventId|mode):\s*"(entry\.\d+)"',(ROOT/'registration-config.js').read_text()))}
 EVENT={'id':'one','title':'Unity 品川交流会','startsAt':'2026-10-12T05:00:00Z','endsAt':None,'location':'品川','category':'交流会','url':None}
-state={'events':[EVENT,dict(EVENT,id='two',startsAt='2026-11-02T06:00:00Z')],'failure':False,'ready':True,'send_failure':False,'metadata':True}
+state={'events':[EVENT,dict(EVENT,id='two',startsAt='2026-11-02T06:00:00Z')],'failure':False,'ready':True,'send_failure':False,'metadata':True,'claim':False}
 posts=[]; growth=[]
 def route(r):
     u=urlsplit(r.request.url)
@@ -27,6 +27,8 @@ def route(r):
             growth.append(json.loads(r.request.post_data));r.fulfill(status=202,headers=headers,json={'ok':True});return
         if state['failure']:r.fulfill(status=503,headers=headers,json={'error':'events_unavailable'});return
         r.fulfill(status=200,headers=headers,json={'version':1,'timeZone':'Asia/Tokyo','months':['2026-10','2026-11'],'events':state['events']});return
+    if u.hostname=='unity-qr-free-79cc330c2434.kukki519.workers.dev':
+        r.fulfill(status=200,headers={'Access-Control-Allow-Origin':'https://nyokki519.github.io'},json={'version':1,'enabled':state['claim'],'entry':'entry.998877'});return
     if u.hostname=='docs.google.com':
         if r.request.method=='POST':posts.append(parse_qs(r.request.post_data or '',keep_blank_values=True))
         if state['send_failure']:r.abort('failed');return
@@ -34,9 +36,10 @@ def route(r):
     r.abort()
 
 with sync_playwright() as p:
-    browser=p.chromium.launch(executable_path=shutil.which('chromium'),headless=True,args=['--no-sandbox'])
+    browser=p.webkit.launch(headless=True, **({'executable_path':os.environ['WEBKIT_EXECUTABLE']} if os.environ.get('WEBKIT_EXECUTABLE') else {})) if os.environ.get('REGISTRATION_BROWSER')=='webkit' else p.chromium.launch(executable_path=shutil.which('chromium'),headless=True,args=['--no-sandbox'])
     context=browser.new_context(viewport={'width':390,'height':844},reduced_motion='reduce')
     context.route('**/*',route)
+    if os.environ.get('REGISTRATION_BROWSER')=='webkit':context.add_init_script("Object.defineProperty(navigator, 'clipboard', {value: {writeText: async text => { window.__clipboard=text; }, readText: async () => window.__clipboard}})")
     page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
     page.clock.install(time=__import__('datetime').datetime(2026,10,11,tzinfo=__import__('datetime').timezone.utc))
     state['events'].append(dict(EVENT,id='duplicate'))
@@ -74,7 +77,7 @@ with sync_playwright() as p:
     assert sum(g['stage']=='form_submit' for g in growth)==1
     assert posts[0]['entry.232206764']==['初めて'];assert 'entry.8001' not in posts[0]
     assert page.locator('#copy-line').inner_text()=='「初参加/参加希望」をコピー'
-    context.grant_permissions(['clipboard-read','clipboard-write']);page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')=='初参加/参加希望'
+    context.grant_permissions(['clipboard-read','clipboard-write']) if os.environ.get('REGISTRATION_BROWSER')!='webkit' else None;page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')=='初参加/参加希望'
     assert posts[0]['entry.1834327533']==[EVENT['title']];assert posts[0]['entry.2119680669']==['2026-10-12']
     assert posts[0]['entry.1146545082']==['公開イベント']
     assert posts[0]['entry.603909823']==['one'];assert 'entry.2127795955' in posts[0]
@@ -137,6 +140,22 @@ with sync_playwright() as p:
     assert not page.locator('#setup-notice').is_visible()
     page.locator('#to-details').click();page.locator('#name').fill('Synthetic legacy');page.locator('#experience-first').check();page.locator('#review-button').click();page.locator('#send-button').click();page.wait_for_timeout(200)
     assert set(posts[-1])=={'entry.1834327533','entry.2119680669','entry.1786168698','entry.2127795955'}
+    state.update(metadata=True,claim=True,send_failure=True)
+    page.goto('https://nyokki519.github.io/Unity_S/?event_id=one');page.wait_for_timeout(200)
+    page.locator('#to-details').click();page.locator('#name').fill('Synthetic claim');page.locator('#experience-first').check();page.locator('#review-button').click();page.locator('#send-button').dblclick();page.wait_for_timeout(200)
+    assert page.locator('#line-link').inner_text()=='LINEで参加QRを受け取る ↗'
+    href=page.locator('#line-link').get_attribute('href')
+    from urllib.parse import unquote
+    message=unquote(href.split('?')[1]);code=message.split(' ')[1]
+    import hashlib
+    assert posts[-1]['entry.998877']==[hashlib.sha256(code.encode()).hexdigest()]
+    assert all(code not in json.dumps(g) for g in growth)
+    assert code not in page.evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)')
+    assert '確認できません' in page.locator('#result-title').inner_text()
+    page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')==message
+    page.screenshot(path=str(OUT/'09-claim-link-mobile.png'),full_page=True)
+    page.evaluate("dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));")
+    assert code not in page.locator('#line-link').get_attribute('href')
     assert not errors,errors
     nojs=browser.new_context(java_script_enabled=False,viewport={'width':390,'height':844});nojs.route('**/*',route)
     fallback=nojs.new_page();fallback.goto('https://nyokki519.github.io/Unity_S/');assert not fallback.locator('#form').is_visible();assert fallback.locator('noscript a[href*=viewform]').is_visible();assert '初参加/参加希望' in fallback.locator('body noscript').inner_text();nojs.close()

@@ -12,7 +12,23 @@
     selectedSnapshot = "",
     busy = false,
     sent = false,
-    submittedExperience = null;
+    submittedExperience = null,
+    claimInfo = null,
+    claimCode = null;
+  const originalLineUrl = $("line-link").href;
+  const claimReady = loadClaimConfig();
+  async function loadClaimConfig() {
+    const helper = window.UnityQrClaim;
+    if (!helper || (config.qrInfoUrl && config.qrInfoUrl !== helper.endpoint)) return;
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 4000);
+    try {
+      const response = await fetch(helper.endpoint, { mode: "cors", credentials: "omit", cache: "no-store", redirect: "error", signal: controller.signal });
+      if (response.ok) {
+        const info = await response.json();
+        if (helper.validate(info, config.entries) && info.entry !== window.UnityGrowthConfig?.formEntry) claimInfo = info;
+      }
+    } catch {} finally { clearTimeout(timer); }
+  }
   const requestedId = new URL(location.href).searchParams.get("event_id");
   let initialSelection = true;
   const dateFormat = new Intl.DateTimeFormat("ja-JP", {
@@ -301,6 +317,9 @@
       updateLineGuide();
     }),
   );
+  function contactMessage() {
+    return claimCode ? window.UnityQrClaim.message(claimCode) : core.lineMessage(contactExperience());
+  }
   function contactExperience() {
     return submittedExperience ?? data().experience;
   }
@@ -349,8 +368,17 @@
       ).find((input) => input.name === trackingEntry);
       if (tracking) body.set(trackingEntry, tracking.value);
     }
-    submittedExperience = data().experience;
     sent = true;
+    $("send-button").disabled = true;
+    await claimReady;
+    if (claimInfo && config.entries?.eventId && body.has(config.entries.eventId) && data().mode === "published" && data().event.id.length <= 128) {
+      try {
+        const claim = await window.UnityQrClaim.create(window.crypto);
+        body.set(claimInfo.entry, claim.hash);
+        claimCode = claim.code;
+      } catch { claimCode = null; }
+    }
+    submittedExperience = data().experience;
     form.dispatchEvent(new Event("unity:registration-send"));
     $("send-button").disabled = true;
     $("sending-status").textContent = "送信処理中です。";
@@ -381,18 +409,25 @@
         ? "公式LINEを追加し、「初参加/参加希望」とメッセージをお送りください。"
         : "次に、公式LINEから「参加希望」のメッセージをお願いします。"
       : "通信が中断されました。すでに届いている可能性もあるため、再送せず公式LINEへお問い合わせください。";
+    if (claimCode) {
+      $("line-link").href = window.UnityQrClaim.link(claimCode);
+      $("line-link").textContent = "LINEで参加QRを受け取る ↗";
+      $("result-line-guide").textContent = "LINEを開いて、入力された申込専用メッセージを送信してください。";
+      $("copy-line").textContent = "申込専用メッセージをコピー";
+      $("result-message").textContent = "送信結果はこの画面では確認できません。LINEで申込確認と参加QRの受け取りへ進んでください。";
+    }
     $("result-title").focus();
   });
   $("copy-line").addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(
-        core.lineMessage(contactExperience()),
+        contactMessage(),
       );
       $("copy-status").textContent =
         "コピーしました。LINEに貼り付けてお送りください。";
     } catch {
       $("copy-status").textContent =
-        `コピーできませんでした。「${core.lineMessage(contactExperience())}」と入力してお送りください。`;
+        claimCode ? "コピーできませんでした。上のLINEボタンから送信してください。" : `コピーできませんでした。「${contactMessage()}」と入力してお送りください。`;
     }
   });
   $("date").min = core.japanDate(new Date());
@@ -418,6 +453,13 @@
   });
   // Form values remain memory-only and are removed from the back/forward cache.
   window.addEventListener("pagehide", () => {
+    if (claimCode) {
+      claimCode = null;
+      $("line-link").href = originalLineUrl;
+      $("line-link").textContent = "公式LINEを開く ↗";
+      $("copy-line").textContent = "参加希望をコピー";
+      $("copy-status").textContent = "";
+    }
     form.reset();
     $("review-summary").replaceChildren();
     $("result-summary").replaceChildren();
