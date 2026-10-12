@@ -349,9 +349,10 @@
       show("details");
       return;
     }
-    let body;
+    let body, submission;
     try {
-      body = core.buildPayload(data(), config);
+      submission = data();
+      body = core.buildPayload(submission, config);
     } catch {
       $("sending-status").textContent =
         "申込設定を確認できません。公式LINEへお問い合わせください。";
@@ -371,7 +372,8 @@
     sent = true;
     $("send-button").disabled = true;
     await claimReady;
-    if (claimInfo && claimInfo.entry !== window.UnityGrowthConfig?.formEntry && config.entries?.eventId && body.has(config.entries.eventId) && data().mode === "published" && data().event.id.length <= 128) {
+    const publicEventId = config.entries?.eventId ? body.get(config.entries.eventId) : null;
+    if (claimInfo && claimInfo.entry !== window.UnityGrowthConfig?.formEntry && (submission.mode === "manual" || (publicEventId && publicEventId.length <= 128))) {
       try {
         const claim = await window.UnityQrClaim.create(window.crypto);
         body.set(claimInfo.entry, claim.hash);

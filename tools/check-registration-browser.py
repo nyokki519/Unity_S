@@ -155,6 +155,22 @@ with sync_playwright() as p:
     assert '確認できません' in page.locator('#result-title').inner_text()
     page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')==message
     page.screenshot(path=str(OUT/'09-claim-link-mobile.png'),full_page=True)
+    # Unlisted/private event: keep public ID blank, send only a hash, and expose claim-based LINE receipt.
+    before=len(posts);page.goto('https://nyokki519.github.io/Unity_S/');page.locator('#event-one').wait_for()
+    page.locator('#manual-toggle').check();page.locator('#eventName').fill('リピーター会');page.locator('#date').fill('2026-11-03')
+    page.locator('#to-details').click();page.locator('#name').fill('Synthetic private participant');page.locator('#experience-returning').check();page.locator('#review-button').click();page.locator('#send-button').click()
+    page.locator('#line-link').filter(has_text='LINEで参加QRを受け取る').wait_for()
+    manual_url=page.locator('#line-link').get_attribute('href')
+    from urllib.parse import unquote
+    private_code=unquote(urlsplit(manual_url).query).removeprefix('参加QR ')
+    assert re.fullmatch(r'[a-f0-9]{64}',private_code)
+    assert len(posts)==before+1
+    payload=posts[-1];assert payload[CONFIG['entries']['eventId']]==[''];assert payload[CONFIG['entries']['mode']]==['自由入力'];assert payload[CONFIG['entries']['eventName']]==['リピーター会'];assert payload[CONFIG['entries']['name']]==['Synthetic private participant']
+    assert payload['entry.998877']==[hashlib.sha256(private_code.encode()).hexdigest()]
+    assert private_code not in json.dumps(payload)
+    assert all(private_code not in json.dumps(g) and hashlib.sha256(private_code.encode()).hexdigest() not in json.dumps(g) for g in growth)
+    page.screenshot(path=str(OUT/'10-manual-claim-link-mobile.png'),full_page=True)
+
     page.evaluate("dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));")
     assert code not in page.locator('#line-link').get_attribute('href')
     assert not errors,errors
