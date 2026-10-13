@@ -586,3 +586,10 @@ footer {
     scroll-behavior: auto !important;
   }
 }
+
+#line-send-dialog { border: 1px solid #d8c7ad; border-radius: 20px; padding: 28px; width: min(480px, calc(100vw - 32px)); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; color: #183c32; background: #fffaf0; }
+#line-send-dialog::backdrop { background: rgba(16,43,36,.62); }
+#line-send-dialog h3 { font-size: 24px; line-height: 1.5; margin: 12px 0; }
+#line-send-dialog ol { padding-left: 24px; line-height: 1.8; }
+#line-send-dialog .primary, #line-send-dialog .secondary { display: block; width: 100%; margin-top: 16px; text-align: center; }
+.line-send-important { padding: 14px; border-radius: 10px; background: #ede5d5; font-weight: 600; }
