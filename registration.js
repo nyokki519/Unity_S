@@ -329,6 +329,7 @@
     $("review-line-guide").textContent = first
       ? `申込後は公式LINEを追加し、「${message}」とメッセージをお送りください。`
       : "送信後は従来どおり、公式LINEにて「参加希望」とメッセージをお願いします。";
+    if(claimInfo)$("review-line-guide").textContent="送信後、案内のボタンから公式LINEを開き、コード付きメッセージをそのまま送信してください。LINEを開くだけでは完了しません。";
     $("result-line-guide").textContent = first
       ? `公式LINEの追加と「${message}」の送信をお願いします。`
       : "公式LINEで「参加希望」とお送りください。";
@@ -419,7 +420,15 @@
       $("result-message").textContent = "送信結果はこの画面では確認できません。LINEで申込確認と参加QRの受け取りへ進んでください。";
     }
     $("result-title").focus();
+    const prompt=$("line-send-dialog");
+    $("dialog-line-link").href=$("line-link").href;
+    $("line-send-description").textContent=claimCode ? "申込とLINEを紐づけて、あなたの参加QRを受け取ります。コードは入力済みなので、そのまま送信してください。" : "公式LINEで参加希望メッセージを送信してください。";
+    $("line-send-step").textContent=claimCode ? "入力済みのメッセージを、そのまま送信する" : `「${contactMessage()}」と入力して送信する`;
+    prompt.hidden=false;
+    if(typeof prompt.showModal==='function')prompt.showModal();else prompt.setAttribute('open','');
+
   });
+  $("close-line-send").addEventListener("click",()=>{ const prompt=$("line-send-dialog"); if(typeof prompt.close==='function')prompt.close();else prompt.removeAttribute('open'); prompt.hidden=true; $("line-link").focus(); });
   $("copy-line").addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(
@@ -455,6 +464,9 @@
   });
   // Form values remain memory-only and are removed from the back/forward cache.
   window.addEventListener("pagehide", () => {
+    $("dialog-line-link").href=originalLineUrl;
+    if($("line-send-dialog").open && typeof $("line-send-dialog").close==='function')$("line-send-dialog").close();
+    $("line-send-dialog").removeAttribute('open');$("line-send-dialog").hidden=true;
     if (claimCode) {
       claimCode = null;
       $("line-link").href = originalLineUrl;

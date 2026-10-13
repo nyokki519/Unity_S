@@ -61,7 +61,8 @@ with sync_playwright() as p:
     assert not posts and not any(g['stage']=='form_submit' for g in growth), 'implicit Enter counted as send'
     assert page.locator('input[type=email],#email').count()==0
     page.locator('#experience-first').check();assert page.locator('#first-line-guide').is_visible()
-    assert '初参加/参加希望' in page.locator('#first-line-guide').inner_text()
+    assert '公式LINEを追加' in page.locator('#first-line-guide').inner_text()
+    assert '完了画面' in page.locator('#first-line-guide').inner_text()
     assert page.locator('#add-line').get_attribute('href')=='https://lin.ee/vRZi9Rf'
     page.screenshot(path=str(OUT/'08-first-time-line-guide.png'),full_page=True)
     page.locator('#review-button').click()
@@ -77,7 +78,7 @@ with sync_playwright() as p:
     assert sum(g['stage']=='form_submit' for g in growth)==1
     assert posts[0]['entry.232206764']==['初めて'];assert 'entry.8001' not in posts[0]
     assert page.locator('#copy-line').inner_text()=='「初参加/参加希望」をコピー'
-    context.grant_permissions(['clipboard-read','clipboard-write']) if os.environ.get('REGISTRATION_BROWSER')!='webkit' else None;page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')=='初参加/参加希望'
+    context.grant_permissions(['clipboard-read','clipboard-write']) if os.environ.get('REGISTRATION_BROWSER')!='webkit' else None;page.locator('#close-line-send').click();page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')=='初参加/参加希望'
     assert posts[0]['entry.1834327533']==[EVENT['title']];assert posts[0]['entry.2119680669']==['2026-10-12']
     assert posts[0]['entry.1146545082']==['公開イベント']
     assert posts[0]['entry.603909823']==['one'];assert 'entry.2127795955' in posts[0]
@@ -105,7 +106,7 @@ with sync_playwright() as p:
     assert posts[-1]['entry.603909823']==[''];assert posts[-1]['entry.1834327533']==['未掲載テスト']
     assert page.locator('#name').input_value()=='Synthetic manual'
     assert page.locator('#copy-line').inner_text()=='「参加希望」をコピー'
-    page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')=='参加希望'
+    page.locator('#close-line-send').click();page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')=='参加希望'
     page.screenshot(path=str(OUT/'05-mobile-network-unknown.png'),full_page=True)
     state.update(failure=False,send_failure=False,ready=False)
     page.goto('https://nyokki519.github.io/Unity_S/');page.wait_for_timeout(300)
@@ -144,7 +145,11 @@ with sync_playwright() as p:
     page.goto('https://nyokki519.github.io/Unity_S/?event_id=one');page.wait_for_timeout(200)
     page.locator('#to-details').click();page.locator('#name').fill('Synthetic claim');page.locator('#experience-first').check();page.locator('#review-button').click();page.locator('#send-button').dblclick();page.wait_for_timeout(200)
     assert page.locator('#line-link').inner_text()=='LINEで参加QRを受け取る ↗'
+    assert page.locator('#line-send-dialog').is_visible()
+    assert 'LINEを開くだけでは完了しません' in page.locator('#line-send-dialog').inner_text()
     href=page.locator('#line-link').get_attribute('href')
+    assert page.locator('#dialog-line-link').get_attribute('href')==href
+    page.screenshot(path=str(OUT/'11-line-send-dialog.png'),full_page=True)
     from urllib.parse import unquote
     message=unquote(href.split('?')[1]);code=message.split(' ')[1]
     import hashlib
@@ -153,14 +158,16 @@ with sync_playwright() as p:
     assert 'noreferrer' in page.locator('#line-link').get_attribute('rel')
     assert code not in page.evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)')
     assert '確認できません' in page.locator('#result-title').inner_text()
-    page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')==message
+    page.locator('#close-line-send').click();page.locator('#copy-line').click();assert page.evaluate('navigator.clipboard.readText()')==message
     page.screenshot(path=str(OUT/'09-claim-link-mobile.png'),full_page=True)
     # Unlisted/private event: keep public ID blank, send only a hash, and expose claim-based LINE receipt.
     before=len(posts);page.goto('https://nyokki519.github.io/Unity_S/');page.locator('#event-one').wait_for()
     page.locator('#manual-toggle').check();page.locator('#eventName').fill('リピーター会');page.locator('#date').fill('2026-11-03')
     page.locator('#to-details').click();page.locator('#name').fill('Synthetic private participant');page.locator('#experience-returning').check();page.locator('#review-button').click();page.locator('#send-button').click()
     page.locator('#line-link').filter(has_text='LINEで参加QRを受け取る').wait_for()
+    assert page.locator('#line-send-dialog').is_visible()
     manual_url=page.locator('#line-link').get_attribute('href')
+    assert page.locator('#dialog-line-link').get_attribute('href')==manual_url
     from urllib.parse import unquote
     private_code=unquote(urlsplit(manual_url).query).removeprefix('参加QR ')
     assert re.fullmatch(r'[a-f0-9]{64}',private_code)
@@ -173,6 +180,8 @@ with sync_playwright() as p:
 
     page.evaluate("dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));")
     assert code not in page.locator('#line-link').get_attribute('href')
+    assert code not in page.locator('#dialog-line-link').get_attribute('href')
+    assert not page.locator('#line-send-dialog').is_visible()
     assert not errors,errors
     nojs=browser.new_context(java_script_enabled=False,viewport={'width':390,'height':844});nojs.route('**/*',route)
     fallback=nojs.new_page();fallback.goto('https://nyokki519.github.io/Unity_S/');assert not fallback.locator('#form').is_visible();assert fallback.locator('noscript a[href*=viewform]').is_visible();assert '初参加/参加希望' in fallback.locator('body noscript').inner_text();nojs.close()

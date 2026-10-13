@@ -191,7 +191,7 @@
               >
                 <strong>初参加の方は公式LINEの追加が必要です。</strong>
                 <p>
-                  開催案内や変更のご連絡をお届けするため、公式LINEを追加し、申込後に「初参加/参加希望」とメッセージをお送りください。
+                  開催案内や変更のご連絡をお届けするため、公式LINEを追加し、申込後に完了画面の案内からメッセージを送信してください。
                 </p>
                 <a
                   id="add-line"
@@ -247,6 +247,16 @@
             ></p>
           </section>
         </form>
+        <dialog id="line-send-dialog" hidden aria-labelledby="line-send-title" aria-describedby="line-send-description">
+          <p class="eyebrow">あと1ステップ</p>
+          <h3 id="line-send-title">LINEでメッセージを送ってください</h3>
+          <p id="line-send-description">申込とLINEを紐づけて、あなたの参加QRを受け取ります。</p>
+          <ol><li>下のボタンで公式LINEを開く</li><li id="line-send-step">入力済みのメッセージを、そのまま送信する</li></ol>
+          <p class="line-send-important">LINEを開くだけでは完了しません。送信ボタンを押してください。</p>
+          <a id="dialog-line-link" class="primary" href="https://lin.ee/vRZi9Rf" target="_blank" rel="noopener noreferrer">LINEを開いてメッセージを送る ↗</a>
+          <p class="help">初参加の方は、友だち追加後に送信してください。再申込は不要です。</p>
+          <button id="close-line-send" type="button" class="secondary">申込内容・コピー方法を確認する</button>
+        </dialog>
         <section id="result" hidden aria-labelledby="result-title">
           <p class="eyebrow">NEXT STEP</p>
           <h3 id="result-title" tabindex="-1"></h3>
