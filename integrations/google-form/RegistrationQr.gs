@@ -7,6 +7,9 @@ function setupUnityRegistrationQr() {
   var fields=['お名前','イベント名','日時','公開イベントID'];
   fields.forEach(function(t){if(items.filter(function(i){return i.getTitle()===t;}).length!==1)throw new Error('Required Form question missing or ambiguous: '+t);});
   if(matches.length>1||(matches.length&&matches[0].getType()!==FormApp.ItemType.TEXT))throw new Error('Claim question title/type conflict.');
+  var publicId=items.filter(function(i){return i.getTitle()==='公開イベントID';})[0];
+  if(publicId.getType()!==FormApp.ItemType.TEXT)throw new Error('Public event ID question type conflict.');
+  publicId.asTextItem().setRequired(false); // Free-input registrations have no public event ID.
   var item=matches.length?matches[0].asTextItem():form.addTextItem().setTitle(title);
   item.setRequired(false).setHelpText('申込サイトから自動入力されます。空欄でも申し込めます。');
   var url=form.createResponse().withItemResponse(item.createResponse('0'.repeat(64))).toPrefilledUrl();
@@ -27,18 +30,28 @@ function onUnityQrSubmit(event) {
   var hash=claims.length===1?String(claims[0].getResponse()).trim():'';
   if(!hash)return; // Legacy submissions are unaffected.
   if(!/^[a-f0-9]{64}$/.test(hash))throw new Error('Invalid claim hash.');
-  function answer(title) {
+  function answer(title,optional) {
     var found=rows.filter(function(r){return r.getItem().getTitle()===title;});
+    if(optional&&found.length===0)return '';
     if(found.length!==1)throw new Error('Accepted response field missing or ambiguous.');
     return String(found[0].getResponse()).trim();
   }
-  var name=answer('お名前'),eventId=answer('公開イベントID'),eventDate=answer('日時'),eventName=answer('イベント名');
-  if(!name||name.length>100||/[\x00-\x1f\x7f]/.test(name)||!eventId||eventId.length>128||/[\x00-\x1f\x7f]/.test(eventId)||!eventName||eventName.length>300||/[\x00-\x1f\x7f]/.test(eventName))throw new Error('Invalid accepted response.');
+  var name=answer('お名前'),eventId=answer('公開イベントID',true),eventDate=answer('日時'),eventName=answer('イベント名');
+  if(!name||name.length>100||/[\x00-\x1f\x7f]/.test(name)||eventId.length>128||/[\x00-\x1f\x7f]/.test(eventId)||!eventName||eventName.length>300||/[\x00-\x1f\x7f]/.test(eventName))throw new Error('Invalid accepted response.');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)||!Number.isFinite(Date.parse(eventDate+'T00:00:00Z'))||new Date(eventDate+'T00:00:00Z').toISOString().slice(0,10)!==eventDate)throw new Error('Invalid event date.');
+  // Private reception key only: leave the original public ID/tracking fields untouched.
+  if(!eventId)eventId=unityQrManualEventId_(eventName,eventDate);
   var responseId=event.response.getId();if(!responseId)throw new Error('Accepted response ID missing.');
-  var bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(responseId),Utilities.Charset.UTF_8);
-  var receiptHash=bytes.map(function(b){return ('0'+((b+256)%256).toString(16)).slice(-2);}).join('');
+  var receiptHash=unityQrDigest_(String(responseId));
   postUnityQr_('/accepted',{claimHash:hash,receiptHash:receiptHash,name:name,eventId:eventId,eventDate:eventDate,eventName:eventName});
+}
+function unityQrDigest_(value) {
+  var bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,value,Utilities.Charset.UTF_8);
+  return bytes.map(function(b){return ('0'+((b+256)%256).toString(16)).slice(-2);}).join('');
+}
+function unityQrManualEventId_(name,day) {
+  var normalized=name.normalize('NFKC').trim().replace(/^unity[\s・:：-]*/i,'').replace(/[\s・:：-]/g,'').toLowerCase();
+  return 'sheet-event:'+unityQrDigest_(JSON.stringify([day,normalized]));
 }
 function postUnityQr_(path,body) {
   if(path!=='/config'&&path!=='/accepted')throw new Error('Invalid QR endpoint.');
