@@ -185,3 +185,18 @@ test("payload never submits email; verified metadata and manual identity are pre
   assert.equal(manual.get("entry.5"), "参加したことがある");
   assert.equal(manual.get("entry.7"), "自由入力");
 });
+
+test('December special party is pinned once and expires exactly at its start', () => {
+  const date = new Date('2026-11-23T00:00:00Z');
+  const special = core.withSpecialEvents([event], date)[0];
+  assert.equal(special.title, 'クリスマス🤶＆大忘年会 欲張りparty🎉');
+  assert.equal(special.startsAt, '2026-12-19T19:30:00+09:00');
+  assert.equal(core.withSpecialEvents([event, special], date).length, 2);
+  assert.equal(core.withSpecialEvents([], new Date('2026-12-19T19:29:59+09:00')).length, 1);
+  assert.equal(core.withSpecialEvents([], new Date('2026-12-19T19:30:00+09:00')).length, 0);
+  const body = core.buildPayload({...input,event:special}, config, date);
+  assert.equal(body.get('entry.2'), '2026-12-19');
+  assert.equal(body.get('entry.6'), 'unity-special-2026-12-19');
+  assert.equal(body.get('entry.1'), special.title);
+  assert.throws(() => core.buildPayload({...input,event:special}, config,new Date('2026-12-20T00:00:00+09:00')));
+});

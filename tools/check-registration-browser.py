@@ -26,7 +26,7 @@ def route(r):
             if r.request.method=='OPTIONS':r.fulfill(status=204,headers={**headers,'Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST'});return
             growth.append(json.loads(r.request.post_data));r.fulfill(status=202,headers=headers,json={'ok':True});return
         if state['failure']:r.fulfill(status=503,headers=headers,json={'error':'events_unavailable'});return
-        r.fulfill(status=200,headers=headers,json={'version':1,'timeZone':'Asia/Tokyo','months':['2026-10','2026-11'],'events':state['events']});return
+        r.fulfill(status=200,headers=headers,json={'version':1,'timeZone':'Asia/Tokyo','months':state.get('months',['2026-10','2026-11']),'events':state['events']});return
     if u.hostname=='unity-qr-free-79cc330c2434.kukki519.workers.dev':
         r.fulfill(status=200,headers={'Access-Control-Allow-Origin':'https://nyokki519.github.io'},json={'version':1,'enabled':state['claim'],'entry':'entry.998877'});return
     if u.hostname=='docs.google.com':
@@ -185,5 +185,27 @@ with sync_playwright() as p:
     assert not errors,errors
     nojs=browser.new_context(java_script_enabled=False,viewport={'width':390,'height':844});nojs.route('**/*',route)
     fallback=nojs.new_page();fallback.goto('https://nyokki519.github.io/Unity_S/');assert not fallback.locator('#form').is_visible();assert fallback.locator('noscript a[href*=viewform]').is_visible();assert '初参加/参加希望' in fallback.locator('body noscript').inner_text();nojs.close()
+    state.update(months=['2026-11','2026-12'],events=[dict(EVENT,id='ordinary',startsAt='2026-12-01T05:00:00Z')],failure=False,ready=True,metadata=True,claim=False)
+    special_context=browser.new_context(viewport={'width':390,'height':844});special_context.route('**/*',route)
+    special_page=special_context.new_page();special_page.clock.install(time=__import__('datetime').datetime(2026,11,23,tzinfo=__import__('datetime').timezone.utc))
+    special_page.goto('https://nyokki519.github.io/Unity_S/');special_page.wait_for_timeout(300)
+    assert special_page.locator('#event-list input').first.get_attribute('value')=='unity-special-2026-12-19'
+    assert special_page.locator('.special-event-badge').inner_text()=='12/19 Unity SPECIAL EVENT'
+    for width in [360,390,768,1440]:
+        special_page.set_viewport_size({'width':width,'height':900})
+        assert special_page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        special_page.screenshot(path=str(OUT/f'11-special-{width}.png'),full_page=True)
+    special_page.locator('#event-unity-special-2026-12-19').check();special_page.locator('#to-details').click()
+    assert '19:30' in special_page.locator('#selected-event').inner_text()
+    special_page.locator('#name').fill('Synthetic special participant');special_page.locator('#experience-first').check();special_page.locator('#review-button').click()
+    assert '19:30' in special_page.locator('#review-summary').inner_text()
+    before=len(posts);special_page.locator('#send-button').click();special_page.locator('#result').wait_for()
+    assert len(posts)==before+1
+    assert posts[-1][CONFIG['entries']['date']]==['2026-12-19']
+    assert posts[-1][CONFIG['entries']['eventId']]==['unity-special-2026-12-19']
+    state['failure']=True;special_page.goto('https://nyokki519.github.io/Unity_S/');special_page.wait_for_timeout(300)
+    assert special_page.locator('#event-list input').count()==1
+    assert special_page.locator('#event-unity-special-2026-12-19').is_visible()
+    special_context.close()
     browser.close()
 print('PASS event/manual selection, first-time LINE guide/copy and returning unchanged, review/edit, no-PII tracking, one send, unknown outcome, configuration gate and legacy three-entry compatibility, 4 widths and refresh preservation')

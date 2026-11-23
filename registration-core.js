@@ -34,6 +34,19 @@
   }
   const clean = (value, max) =>
     typeof value === "string" ? value.trim().slice(0, max) : "";
+  const specialEvent = {
+    id: "unity-special-2026-12-19",
+    title: "クリスマス🤶＆大忘年会 欲張りparty🎉",
+    date: "2026-12-19", startsAt: "2026-12-19T19:30:00+09:00", endsAt: null,
+    location: null, category: "特別イベント", url: null,
+    special: true, aliases: [],
+  };
+  function withSpecialEvents(events, now = new Date()) {
+    const today = japanDate(now);
+    const rest = events.filter(e => e.id !== specialEvent.id);
+    return today >= "2026-11-23" && Date.parse(specialEvent.startsAt) > now.getTime()
+      ? [{ ...specialEvent, aliases: [] }, ...rest] : rest;
+  }
   function normalizeFeed(payload, now = new Date()) {
     const months = japanMonths(now);
     let scope;
@@ -210,6 +223,7 @@
     return experience === "first" ? "初参加/参加希望" : "参加希望";
   }
   return {
+    withSpecialEvents,
     lineMessage,
     japanDate,
     japanMonths,

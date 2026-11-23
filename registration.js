@@ -43,6 +43,7 @@
     minute: "2-digit",
     hourCycle: "h23",
   });
+  const eventDateLabel = (e) => dateFormat.format(new Date(e.startsAt)) + " · " + timeFormat.format(new Date(e.startsAt));
   const signature = (e) =>
     JSON.stringify([e.id, e.title, e.startsAt, e.endsAt, e.location]);
   function node(tag, text, className) {
@@ -117,9 +118,7 @@
         manual
           ? d.date
           : event
-            ? dateFormat.format(new Date(event.startsAt)) +
-              " " +
-              timeFormat.format(new Date(event.startsAt))
+            ? eventDateLabel(event)
             : null,
       ],
       [
@@ -142,7 +141,7 @@
   function renderEvents() {
     const fragment = document.createDocumentFragment();
     for (const event of events) {
-      const label = node("label", undefined, "event-option");
+      const label = node("label", undefined, event.special ? "event-option event-option-special" : "event-option");
       const radio = node("input");
       radio.type = "radio";
       radio.name = "event-choice";
@@ -151,17 +150,22 @@
       radio.checked = event.id === selectedId;
       radio.setAttribute("aria-describedby", "error-event");
       const content = node("span");
+      if (event.special) content.append(node("span", "12/19 Unity SPECIAL EVENT", "special-event-badge"));
       content.append(
         node(
           "div",
-          dateFormat.format(new Date(event.startsAt)) +
-            " · " +
-            timeFormat.format(new Date(event.startsAt)),
+          eventDateLabel(event),
           "event-date",
         ),
-        node("strong", event.title),
+        node("strong", event.special ? "クリスマス🤶＆大忘年会" : event.title),
         node("small", event.location || "会場はイベントの案内をご確認ください"),
       );
+      if (event.special) {
+        content.querySelector(".event-date").hidden = true;
+        content.insertBefore(node("span", "欲張りparty🎉", "special-event-subtitle"), content.querySelector("small"));
+        content.querySelector("small").textContent = "12月19日(土) · 19:30〜";
+        content.append(node("small", "会場は別途ご案内"));
+      }
       radio.addEventListener("change", () => {
         selectedId = event.id;
         selectedSnapshot = signature(event);
@@ -237,7 +241,7 @@
             "https://unity-analytics.vercel.app/api/public/events",
         );
       }
-      events = feed.events;
+      events = core.withSpecialEvents(feed.events);
       $("feed-label").textContent =
         feed.scope === "monthly"
           ? "今月の公開イベント"
@@ -272,9 +276,11 @@
           ? "参加するイベントを選んでください。"
           : "現在、選択できる公開イベントはありません。案内を受けたイベントは自由入力できます。");
     } catch (error) {
-      events = [];
-      selectedId = "";
-      selectedSnapshot = "";
+      events = core.withSpecialEvents([]);
+      if (!events.some(e => e.id === selectedId)) {
+        selectedId = "";
+        selectedSnapshot = "";
+      }
       renderEvents();
       $("feed-status").textContent =
         (error.name === "AbortError"
@@ -302,9 +308,7 @@
         ? d.eventName + " · " + d.date
         : d.event.title +
           " · " +
-          dateFormat.format(new Date(d.event.startsAt)) +
-          " " +
-          timeFormat.format(new Date(d.event.startsAt));
+          eventDateLabel(d.event);
     show("details");
   });
   $("edit-event").addEventListener("click", () => show("event-step"));
