@@ -593,3 +593,34 @@ footer {
 #line-send-dialog ol { padding-left: 24px; line-height: 1.8; }
 #line-send-dialog .primary, #line-send-dialog .secondary { display: block; width: 100%; margin-top: 16px; text-align: center; }
 .line-send-important { padding: 14px; border-radius: 10px; background: #ede5d5; font-weight: 600; }
+
+/* One-off December 19 celebration; decoration never obstructs the radio control. */
+.event-option-special {
+  position: relative;
+  border: 2px solid #b18a43;
+  padding: 20px 16px;
+  background: radial-gradient(ellipse at top right, #d9b66a26, transparent 65%), linear-gradient(135deg, #fff9e9, #fffdf5 50%, #f1f5ee);
+  box-shadow: 0 4px 18px #80602918, inset 0 0 0 4px #ffffffa6;
+}
+.event-option-special:has(input:checked) {
+  padding: 20px 16px;
+  border-color: #295b43;
+  background: linear-gradient(135deg, #f4e5bd, #fff9e9 55%, #e4efe3);
+  box-shadow: 0 0 0 2px #295b4320, 0 6px 20px #80602920;
+}
+.event-option-special > span { min-width: 0; }
+.special-event-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: #fff9e9;
+  background: #29533d;
+  border: 1px solid #b18a43;
+  border-radius: 5px;
+  padding: 4px 8px;
+  margin-bottom: 12px;
+}
+.event-option-special strong { color: #5f252c; font-size: clamp(16px, 4.3vw, 20px); line-height: 1.6; }
+.special-event-subtitle { display: block; color: #70511e; font-size: 16px; font-weight: 700; margin: 5px 0 9px; }
+.event-option-special small { color: #4c584b; line-height: 1.7; }
